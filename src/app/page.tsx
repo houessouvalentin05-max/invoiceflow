@@ -1,7 +1,30 @@
+import Link from 'next/link'
+
 export default function Home() {
   return (
-    <main className="flex min-h-screen items-center justify-center">
-      <h1 className="text-4xl font-bold">InvoiceFlow 🚀</h1>
+    <main className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+      <div className="text-center space-y-6">
+        <h1 className="text-5xl font-bold text-gray-900">
+          Invoice<span className="text-blue-600">Flow</span> 🚀
+        </h1>
+        <p className="text-gray-500 text-lg max-w-md">
+          La solution de facturation simple et rapide pour les freelances et petites entreprises en Afrique de l'Ouest.
+        </p>
+        <div className="flex gap-4 justify-center">
+          <Link
+            href="/register"
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700"
+          >
+            Créer un compte
+          </Link>
+          <Link
+            href="/login"
+            className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-100"
+          >
+            Se connecter
+          </Link>
+        </div>
+      </div>
     </main>
-  );
+  )
 }
