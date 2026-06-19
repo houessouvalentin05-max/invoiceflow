@@ -90,8 +90,12 @@ export default function InvoicesPage() {
             <tbody className="divide-y divide-gray-100">
               {invoices.map(invoice => (
                 <tr key={invoice.id}>
-                  <td className="px-6 py-4 font-medium text-gray-900">{invoice.invoice_number}</td>
-                  <td className="px-6 py-4 text-gray-500">{invoice.client?.name || '—'}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">
+                      <a href={`/dashboard/invoices/${invoice.id}`} className="text-blue-600 hover:underline">
+                        {invoice.invoice_number}
+                      </a>
+                    </td>                                    
+                   <td className="px-6 py-4 text-gray-500">{invoice.client?.name || '—'}</td>
                   <td className="px-6 py-4 font-medium text-gray-900">
                     {invoice.total.toLocaleString()} {invoice.currency}
                   </td>
