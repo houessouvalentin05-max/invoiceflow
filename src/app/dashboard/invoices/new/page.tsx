@@ -2,16 +2,21 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { getAuthenticatedClient } from '@/lib/supabase/client'
 
-interface Client {
-  id: string
-  name: string
+interface Client { id: string; name: string }
+interface Item { description: string; quantity: number; unit_price: number }
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', height: 42, border: '1px solid #E2E8F0', borderRadius: 10,
+  padding: '0 14px', fontSize: 14, color: '#0F172A', background: '#F8FAFC',
+  outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', transition: 'border-color 0.2s'
 }
-
-interface Item {
-  description: string
-  quantity: number
-  unit_price: number
+const labelStyle: React.CSSProperties = {
+  display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6
+}
+const sectionStyle: React.CSSProperties = {
+  background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: 24
 }
 
 export default function NewInvoicePage() {
@@ -21,180 +26,235 @@ export default function NewInvoicePage() {
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({
     client_id: '',
-    invoice_number: `INV-${Date.now()}`,
+    invoice_number: `FAC-${Math.floor(Math.random() * 900000 + 100000)}`,
     currency: 'XOF',
     due_date: '',
+    status: 'draft',
+    notes: '',
   })
   const [items, setItems] = useState<Item[]>([
     { description: '', quantity: 1, unit_price: 0 }
   ])
 
   useEffect(() => {
-    fetch('/api/clients')
-      .then(res => res.json())
-      .then(setClients)
+    let active = true
+
+    async function loadClients() {
+      try {
+        const supabase = await getAuthenticatedClient()
+        const { data, error } = await supabase.from('clients').select('id,name').order('name')
+
+        if (!active) return
+
+        if (error) {
+          console.error('Erreur chargement clients:', error)
+          return
+        }
+
+        setClients(data || [])
+      } catch (err) {
+        console.error('Erreur session clients:', err)
+      }
+    }
+
+    loadClients()
+
+    return () => {
+      active = false
+    }
   }, [])
 
-  function addItem() {
-    setItems([...items, { description: '', quantity: 1, unit_price: 0 }])
-  }
+  const addItem = () => setItems([...items, { description: '', quantity: 1, unit_price: 0 }])
+  const removeItem = (i: number) => setItems(items.filter((_, idx) => idx !== i))
+  const updateItem = (i: number, field: keyof Item, value: string | number) =>
+    setItems(items.map((item, idx) => idx === i ? { ...item, [field]: value } : item))
 
-  function removeItem(index: number) {
-    setItems(items.filter((_, i) => i !== index))
-  }
-
-  function updateItem(index: number, field: keyof Item, value: string | number) {
-    setItems(items.map((item, i) =>
-      i === index ? { ...item, [field]: value } : item
-    ))
-  }
-
-  const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0)
+  const subtotal = items.reduce((s, it) => s + it.quantity * it.unit_price, 0)
   const tax = subtotal * 0.18
   const total = subtotal + tax
 
+  const fmtNum = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n)
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!form.client_id) { setError('Veuillez sélectionner un client.'); return }
+    if (form.status === 'paid' && total === 0) { setError('Le montant doit être supérieur à 0 pour une facture payée.'); return }
     setLoading(true)
     setError(null)
-
-    const res = await fetch('/api/invoices', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, items }),
-    })
-
-    if (!res.ok) {
-      setError('Erreur lors de la création')
+    const supabase = await getAuthenticatedClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setError('Vous devez être connecté pour créer une facture.')
       setLoading(false)
       return
     }
 
+    const { error: err } = await supabase.from('invoices').insert({
+      user_id: user?.id,
+      client_id: form.client_id,
+      invoice_number: form.invoice_number,
+      currency: form.currency,
+      due_date: form.due_date || null,
+      status: form.status,
+      total: total,
+      subtotal: subtotal,
+      tax: tax,
+      issue_date: new Date().toISOString().split('T')[0],
+      notes: form.notes || null,
+    })
+    if (err) { setError(err.message); setLoading(false); return }
     router.push('/dashboard/invoices')
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Nouvelle facture</h1>
+    <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-white rounded-2xl shadow p-6 space-y-4">
-          <h2 className="font-semibold text-gray-900">Informations</h2>
-          <div className="grid grid-cols-2 gap-4">
+      {/* Header */}
+      <div>
+        <button type="button" onClick={() => router.back()} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#64748B', fontWeight: 600, fontFamily: 'inherit', padding: 0, marginBottom: 12 }}>
+          ← Retour
+        </button>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#2563EB', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Nouvelle facture</div>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.7px', margin: '0 0 6px' }}>Créer une facture</h1>
+        <p style={{ fontSize: 14, color: '#64748B', margin: 0 }}>Remplissez les informations ci-dessous pour générer votre facture.</p>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+        {/* Infos */}
+        <div style={sectionStyle}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', margin: '0 0 20px' }}>Informations générales</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
-              <select
-                value={form.client_id}
-                onChange={e => setForm({ ...form, client_id: e.target.value })}
-                required
-                className="w-full border rounded-lg px-3 py-2 text-gray-900"
-              >
+              <label style={labelStyle}>Client <span style={{ color: '#DC2626' }}>*</span></label>
+              <select value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })} required
+                style={{ ...inputStyle, cursor: 'pointer' }}>
                 <option value="">Sélectionner un client</option>
-                {clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">N° Facture *</label>
-              <input
-                value={form.invoice_number}
-                onChange={e => setForm({ ...form, invoice_number: e.target.value })}
-                required
-                className="w-full border rounded-lg px-3 py-2 text-gray-900"
-              />
+              <label style={labelStyle}>N° Facture <span style={{ color: '#DC2626' }}>*</span></label>
+              <input value={form.invoice_number} onChange={e => setForm({ ...form, invoice_number: e.target.value })} required style={inputStyle}
+                onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = '#E2E8F0'} />
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Devise</label>
-              <select
-                value={form.currency}
-                onChange={e => setForm({ ...form, currency: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-gray-900"
-              >
+              <label style={labelStyle}>Statut</label>
+              <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={{ ...inputStyle, cursor: 'pointer' }}>
+                <option value="draft">Brouillon</option>
+                <option value="pending">En attente</option>
+                <option value="paid">Payée</option>
+                <option value="overdue">En retard</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Date d'échéance</label>
+              <input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} style={inputStyle}
+                onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = '#E2E8F0'} />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Devise</label>
+              <select value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })} style={{ ...inputStyle, cursor: 'pointer' }}>
                 <option value="XOF">XOF (FCFA)</option>
                 <option value="EUR">EUR (€)</option>
                 <option value="USD">USD ($)</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date d'échéance</label>
-              <input
-                type="date"
-                value={form.due_date}
-                onChange={e => setForm({ ...form, due_date: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-gray-900"
-              />
-            </div>
+
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow p-6 space-y-4">
-          <h2 className="font-semibold text-gray-900">Articles</h2>
-          {items.map((item, index) => (
-            <div key={index} className="grid grid-cols-12 gap-2 items-center">
-              <input
-                value={item.description}
-                onChange={e => updateItem(index, 'description', e.target.value)}
-                placeholder="Description *"
-                required
-                className="col-span-6 border rounded-lg px-3 py-2 text-gray-900"
-              />
-              <input
-                type="number"
-                value={item.quantity}
-                onChange={e => updateItem(index, 'quantity', Number(e.target.value))}
-                min="1"
-                className="col-span-2 border rounded-lg px-3 py-2 text-gray-900"
-              />
-              <input
-                type="number"
-                value={item.unit_price}
-                onChange={e => updateItem(index, 'unit_price', Number(e.target.value))}
-                placeholder="Prix"
-                min="0"
-                className="col-span-3 border rounded-lg px-3 py-2 text-gray-900"
-              />
-              {items.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeItem(index)}
-                  className="col-span-1 text-red-500 hover:text-red-700"
-                >✕</button>
-              )}
+        {/* Articles */}
+        <div style={sectionStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', margin: 0 }}>Articles</h2>
+            <button type="button" onClick={addItem} style={{ height: 36, padding: '0 14px', borderRadius: 9, border: '1px solid #E2E8F0', background: '#F8FAFC', fontSize: 13, fontWeight: 600, color: '#2563EB', cursor: 'pointer', fontFamily: 'inherit' }}>
+              + Ajouter une ligne
+            </button>
+          </div>
+
+          {/* Header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 100px 32px', gap: 10, marginBottom: 8 }}>
+            {['Description', 'Qté', 'Prix unitaire', 'Total', ''].map(h => (
+              <div key={h} style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</div>
+            ))}
+          </div>
+
+          {items.map((item, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 100px 32px', gap: 10, marginBottom: 10, alignItems: 'center' }}>
+              <input value={item.description} onChange={e => updateItem(i, 'description', e.target.value)}
+                placeholder="Description de l'article" required style={inputStyle}
+                onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = '#E2E8F0'} />
+              <input type="number" value={item.quantity} min={1} onChange={e => updateItem(i, 'quantity', Number(e.target.value))}
+                style={{ ...inputStyle, padding: '0 10px', textAlign: 'center' }}
+                onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = '#E2E8F0'} />
+              <input type="number" value={item.unit_price} min={0} onChange={e => updateItem(i, 'unit_price', Number(e.target.value))}
+                placeholder="0" style={{ ...inputStyle, padding: '0 10px' }}
+                onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = '#E2E8F0'} />
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', textAlign: 'right' }}>
+                {fmtNum(item.quantity * item.unit_price)}
+              </div>
+              {items.length > 1 ? (
+                <button type="button" onClick={() => removeItem(i)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 14 }}>✕</button>
+              ) : <div />}
             </div>
           ))}
-          <button
-            type="button"
-            onClick={addItem}
-            className="text-blue-600 hover:underline text-sm font-medium"
-          >
-            + Ajouter un article
-          </button>
         </div>
 
-        <div className="bg-white rounded-2xl shadow p-6">
-          <div className="space-y-2 text-right">
-            <p className="text-gray-500">Sous-total : <span className="font-medium text-gray-900">{subtotal.toLocaleString()} {form.currency}</span></p>
-            <p className="text-gray-500">TVA (18%) : <span className="font-medium text-gray-900">{tax.toLocaleString()} {form.currency}</span></p>
-            <p className="text-lg font-bold text-gray-900">Total : {total.toLocaleString()} {form.currency}</p>
+        {/* Notes */}
+        <div style={sectionStyle}>
+          <label style={labelStyle}>Notes / Conditions (optionnel)</label>
+          <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+            placeholder="Conditions de paiement, remerciements..."
+            style={{ ...inputStyle, height: 80, padding: '10px 14px', resize: 'vertical' as const }} />
+        </div>
+
+        {/* Total */}
+        <div style={{ ...sectionStyle, background: 'linear-gradient(135deg,#F8FAFC,#EEF2FF)' }}>
+          <div style={{ maxWidth: 320, marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#64748B' }}>
+              <span>Sous-total</span>
+              <span style={{ fontWeight: 600, color: '#0F172A' }}>{fmtNum(subtotal)} {form.currency}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#64748B' }}>
+              <span>TVA (18%)</span>
+              <span style={{ fontWeight: 600, color: '#0F172A' }}>{fmtNum(tax)} {form.currency}</span>
+            </div>
+            <div style={{ height: 1, background: '#E2E8F0' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 20, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
+              <span>Total</span>
+              <span style={{ color: '#2563EB' }}>{fmtNum(total)} {form.currency}</span>
+            </div>
           </div>
         </div>
 
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && (
+          <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10, padding: '12px 16px', fontSize: 13, color: '#DC2626', fontWeight: 500 }}>
+            {error}
+          </div>
+        )}
 
-        <div className="flex gap-4">
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
-          >
-            {loading ? 'Création...' : 'Créer la facture'}
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button type="submit" disabled={loading} style={{
+            height: 44, padding: '0 24px', borderRadius: 10,
+            background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff',
+            fontSize: 14, fontWeight: 600, border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.7 : 1, fontFamily: 'inherit',
+            boxShadow: '0 4px 14px -4px rgba(79,70,229,0.5)', transition: 'all 0.2s'
+          }}>
+            {loading ? 'Création...' : 'Créer la facture →'}
           </button>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="border px-6 py-2 rounded-lg text-gray-700 hover:bg-gray-50"
-          >
+          <button type="button" onClick={() => router.back()} style={{
+            height: 44, padding: '0 20px', borderRadius: 10, border: '1px solid #E2E8F0',
+            background: '#fff', color: '#64748B', fontSize: 14, fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s'
+          }}>
             Annuler
           </button>
         </div>

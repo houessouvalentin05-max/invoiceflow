@@ -10,7 +10,7 @@ export async function GET() {
 
     const clients = await listClients(user.id)
     return NextResponse.json(clients)
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const client = await addClient(user.id, body)
     return NextResponse.json(client, { status: 201 })
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function HomePage() {
   return (
     <>
@@ -212,10 +214,10 @@ export default function HomePage() {
       {/* NAV */}
       <nav className="nav">
         <div className="nav-inner">
-          <a href="/" className="nav-logo">
+          <Link href="/" className="nav-logo">
             <div className="logo-box">IF</div>
             Invoice<span className="logo-word">Flow</span>
-          </a>
+          </Link>
           <ul className="nav-links">
             <li><a href="#features">Fonctionnalités</a></li>
             <li><a href="#payments">Paiements</a></li>
@@ -513,10 +515,10 @@ export default function HomePage() {
       <footer className="footer">
         <div className="footer-inner">
           <div>
-            <a href="/" className="footer-logo">
+            <Link href="/" className="footer-logo">
               <div className="logo-box">IF</div>
               Invoice<span className="logo-word">Flow</span>
-            </a>
+            </Link>
             <p className="footer-tagline">La facturation de classe mondiale pour les entreprises qui visent haut.</p>
           </div>
           <div className="footer-cols">

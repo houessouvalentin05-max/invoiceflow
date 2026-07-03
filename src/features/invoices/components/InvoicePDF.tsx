@@ -13,6 +13,10 @@ const styles = StyleSheet.create({
   totalSection: { marginTop: 30, alignItems: 'flex-end' }
 });
 
+function money(value: number, currency: string) {
+  return `${value.toLocaleString('fr-FR')} ${currency}`;
+}
+
 export const InvoicePDF = ({ invoice }: { invoice: Invoice }) => (
   <Document>
     <Page style={styles.page}>
@@ -37,14 +41,14 @@ export const InvoicePDF = ({ invoice }: { invoice: Invoice }) => (
         <View key={index} style={styles.tableRow}>
           <Text style={[styles.text, { flex: 2 }]}>{item.description}</Text>
           <Text style={[styles.text, { flex: 1 }]}>{item.quantity}</Text>
-          <Text style={[styles.text, { flex: 1 }]}>{item.unitPrice} €</Text>
+          <Text style={[styles.text, { flex: 1 }]}>{money(item.unitPrice, invoice.currency)}</Text>
         </View>
       ))}
 
       <View style={styles.totalSection}>
-        <Text>Total HT: {invoice.subtotal} €</Text>
-        <Text>TVA: {invoice.tax} €</Text>
-        <Text style={{ fontWeight: 'bold', fontSize: 16 }}>TOTAL TTC: {invoice.total} €</Text>
+        <Text>Total HT: {money(invoice.subtotal, invoice.currency)}</Text>
+        <Text>TVA: {money(invoice.tax, invoice.currency)}</Text>
+        <Text style={{ fontWeight: 'bold', fontSize: 16 }}>TOTAL TTC: {money(invoice.total, invoice.currency)}</Text>
       </View>
     </Page>
   </Document>

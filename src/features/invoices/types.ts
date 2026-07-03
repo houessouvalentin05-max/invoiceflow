@@ -10,6 +10,7 @@ export interface Invoice {
   clientName: string;
   date: string;
   dueDate: string;
+  currency: string;
   items: InvoiceItem[];
   subtotal: number;
   tax: number;
