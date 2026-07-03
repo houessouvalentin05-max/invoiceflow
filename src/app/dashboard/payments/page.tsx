@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useDashboardTheme } from '@/app/dashboard/theme-context'
 
 const fmtXof = (n: number) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n || 0) + ' XOF'
@@ -54,16 +55,25 @@ const METHOD_ICONS: Record<string, React.ReactNode> = {
   ),
 }
 
-const inputStyle: React.CSSProperties = {
-  width: '100%', height: 42, border: '1px solid #E2E8F0', borderRadius: 10,
-  padding: '0 14px', fontSize: 14, color: '#0F172A', background: '#F8FAFC',
+const inputStyle = (isDark: boolean, border: string, text: string, surfaceSoft: string): React.CSSProperties => ({
+  width: '100%', height: 42, border: `1px solid ${border}`, borderRadius: 10,
+  padding: '0 14px', fontSize: 14, color: text, background: surfaceSoft,
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box'
-}
-const labelStyle: React.CSSProperties = {
-  display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6
-}
+})
+const labelStyle = (muted: string): React.CSSProperties => ({
+  display: 'block', fontSize: 13, fontWeight: 600, color: muted, marginBottom: 6
+})
 
 export default function PaymentsPage() {
+  const { theme } = useDashboardTheme()
+  const isDark = theme === 'dark'
+  const surface = isDark ? '#111827' : '#fff'
+  const surfaceSoft = isDark ? '#1F2937' : '#F8FAFC'
+  const border = isDark ? '#334155' : '#E2E8F0'
+  const text = isDark ? '#F8FAFC' : '#0F172A'
+  const muted = isDark ? '#94A3B8' : '#64748B'
+  const subtle = isDark ? '#1E293B' : '#F1F5F9'
+
   const [payments, setPayments] = useState<any[]>([])
   const [invoices, setInvoices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -74,9 +84,16 @@ export default function PaymentsPage() {
 
   async function fetchData() {
     const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
     const [{ data: pay }, { data: inv }] = await Promise.all([
-      supabase.from('payments').select('id,amount,method,reference,paid_at,notes,invoice:invoices(invoice_number,client:clients(name))').order('paid_at', { ascending: false }),
-      supabase.from('invoices').select('id,invoice_number,amount,status,client:clients(name)').order('created_at', { ascending: false }),
+      supabase.from('payments').select('id,amount,method,reference,paid_at,notes,invoice:invoices(invoice_number,client:clients(name))').eq('user_id', user.id).order('paid_at', { ascending: false }),
+      supabase.from('invoices').select('id,invoice_number,total,status,client:clients(name)').eq('user_id', user.id).order('created_at', { ascending: false }),
     ])
     setPayments(pay || [])
     setInvoices(inv || [])
@@ -106,7 +123,7 @@ export default function PaymentsPage() {
     const { data: invoicePayments } = await supabase.from('payments').select('amount').eq('invoice_id', form.invoice_id)
     const totalPaid = (invoicePayments || []).reduce((s, p) => s + Number(p.amount), 0) + Number(form.amount)
     const invoice = invoices.find(i => i.id === form.invoice_id)
-    if (invoice && totalPaid >= Number(invoice.amount)) {
+    if (invoice && totalPaid >= Number(invoice.total)) {
       await supabase.from('invoices').update({ status: 'paid', paid_at: form.paid_at }).eq('id', form.invoice_id)
     }
 
@@ -139,14 +156,14 @@ export default function PaymentsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.7px', margin: '0 0 4px' }}>Paiements</h1>
-          <p style={{ fontSize: 14, color: '#64748B', margin: 0 }}>Suivez tous les paiements reçus pour vos factures.</p>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: text, letterSpacing: '-0.7px', margin: '0 0 4px' }}>Paiements</h1>
+          <p style={{ fontSize: 14, color: muted, margin: 0 }}>Suivez tous les paiements reçus pour vos factures.</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} style={{
           height: 40, padding: '0 18px', borderRadius: 10,
-          background: showForm ? '#fff' : 'linear-gradient(135deg,#2563EB,#7C3AED)',
-          color: showForm ? '#0F172A' : '#fff', fontSize: 13, fontWeight: 600,
-          border: showForm ? '1px solid #E2E8F0' : 'none', cursor: 'pointer',
+          background: showForm ? surface : 'linear-gradient(135deg,#2563EB,#7C3AED)',
+          color: showForm ? text : '#fff', fontSize: 13, fontWeight: 600,
+          border: showForm ? `1px solid ${border}` : 'none', cursor: 'pointer',
           fontFamily: 'inherit', boxShadow: showForm ? 'none' : '0 4px 14px -4px rgba(79,70,229,0.5)'
         }}>
           {showForm ? '✕ Fermer' : '+ Enregistrer un paiement'}
@@ -154,54 +171,54 @@ export default function PaymentsPage() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-        <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: 22 }}>
-          <div style={{ fontSize: 11.5, color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Total encaissé</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.7px' }}>{loading ? '...' : fmtXof(stats.total)}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 16 }}>
+        <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 22, boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>
+          <div style={{ fontSize: 11.5, color: muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Total encaissé</div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: text, letterSpacing: '-0.7px' }}>{loading ? '...' : fmtXof(stats.total)}</div>
         </div>
         {(['momo', 'orange_money', 'bank_transfer'] as const).map(m => (
-          <div key={m} style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: 22 }}>
+          <div key={m} style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 22, boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
               <div style={{ color: METHOD_COLORS[m].color }}>{METHOD_ICONS[m]}</div>
-              <span style={{ fontSize: 11.5, color: '#64748B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{METHOD_LABELS[m]}</span>
+              <span style={{ fontSize: 11.5, color: muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{METHOD_LABELS[m]}</span>
             </div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>{loading ? '...' : fmtXof(stats.byMethod[m] || 0)}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: text, letterSpacing: '-0.5px' }}>{loading ? '...' : fmtXof(stats.byMethod[m] || 0)}</div>
           </div>
         ))}
       </div>
 
       {/* Form */}
       {showForm && (
-        <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: 24 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', margin: '0 0 20px' }}>Enregistrer un paiement</h2>
+        <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 24, boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: text, margin: '0 0 20px' }}>Enregistrer un paiement</h2>
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
               <div>
-                <label style={labelStyle}>Facture <span style={{ color: '#DC2626' }}>*</span></label>
-                <select value={form.invoice_id} onChange={e => setForm({ ...form, invoice_id: e.target.value })} required style={{ ...inputStyle, cursor: 'pointer' }}>
+                <label style={labelStyle(muted)}>Facture <span style={{ color: '#DC2626' }}>*</span></label>
+                <select value={form.invoice_id} onChange={e => setForm({ ...form, invoice_id: e.target.value })} required style={{ ...inputStyle(isDark, border, text, surfaceSoft), cursor: 'pointer' }}>
                   <option value="">Sélectionner une facture</option>
                   {unpaidInvoices.map(i => (
-                    <option key={i.id} value={i.id}>{i.invoice_number} — {i.client?.name || '—'} ({fmtXof(Number(i.amount))})</option>
+                    <option key={i.id} value={i.id}>{i.invoice_number} — {i.client?.name || '—'} ({fmtXof(Number(i.total))})</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Montant reçu <span style={{ color: '#DC2626' }}>*</span></label>
-                <input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="0" required style={inputStyle} />
+                <label style={labelStyle(muted)}>Montant reçu <span style={{ color: '#DC2626' }}>*</span></label>
+                <input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="0" required style={inputStyle(isDark, border, text, surfaceSoft)} />
               </div>
               <div>
-                <label style={labelStyle}>Méthode de paiement</label>
-                <select value={form.method} onChange={e => setForm({ ...form, method: e.target.value })} style={{ ...inputStyle, cursor: 'pointer' }}>
+                <label style={labelStyle(muted)}>Méthode de paiement</label>
+                <select value={form.method} onChange={e => setForm({ ...form, method: e.target.value })} style={{ ...inputStyle(isDark, border, text, surfaceSoft), cursor: 'pointer' }}>
                   {Object.entries(METHOD_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Date du paiement</label>
-                <input type="date" value={form.paid_at} onChange={e => setForm({ ...form, paid_at: e.target.value })} style={inputStyle} />
+                <label style={labelStyle(muted)}>Date du paiement</label>
+                <input type="date" value={form.paid_at} onChange={e => setForm({ ...form, paid_at: e.target.value })} style={inputStyle(isDark, border, text, surfaceSoft)} />
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelStyle}>Référence <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 400 }}>optionnel</span></label>
-                <input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="N° de transaction MoMo, référence bancaire..." style={inputStyle} />
+                <label style={labelStyle(muted)}>Référence <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 400 }}>optionnel</span></label>
+                <input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="N° de transaction MoMo, référence bancaire..." style={inputStyle(isDark, border, text, surfaceSoft)} />
               </div>
             </div>
             {error && <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#DC2626', marginBottom: 16 }}>{error}</div>}
@@ -215,8 +232,8 @@ export default function PaymentsPage() {
                 {saving ? 'Enregistrement...' : 'Enregistrer le paiement'}
               </button>
               <button type="button" onClick={() => setShowForm(false)} style={{
-                height: 40, padding: '0 16px', borderRadius: 10, border: '1px solid #E2E8F0',
-                background: '#fff', color: '#64748B', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'
+                height: 40, padding: '0 16px', borderRadius: 10, border: `1px solid ${border}`,
+                background: surface, color: muted, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'
               }}>Annuler</button>
             </div>
           </form>
@@ -224,9 +241,9 @@ export default function PaymentsPage() {
       )}
 
       {/* Table */}
-      <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, overflow: 'hidden' }}>
+      <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, overflow: 'hidden', boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>
         {loading ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center', color: '#64748B', fontSize: 14 }}>Chargement...</div>
+          <div style={{ padding: '48px 24px', textAlign: 'center', color: muted, fontSize: 14 }}>Chargement...</div>
         ) : payments.length === 0 ? (
           <div style={{ padding: '56px 24px', textAlign: 'center' }}>
             <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(37,99,235,0.08)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
@@ -234,26 +251,26 @@ export default function PaymentsPage() {
                 <rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/>
               </svg>
             </div>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', margin: '0 0 6px' }}>Aucun paiement enregistré</h3>
-            <p style={{ fontSize: 13, color: '#64748B', margin: 0 }}>Enregistrez votre premier paiement reçu.</p>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: text, margin: '0 0 6px' }}>Aucun paiement enregistré</h3>
+            <p style={{ fontSize: 13, color: muted, margin: 0 }}>Enregistrez votre premier paiement reçu.</p>
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 {['Facture', 'Client', 'Montant', 'Méthode', 'Référence', 'Date', ''].map(h => (
-                  <th key={h} style={{ padding: '12px 20px', fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.8px', textAlign: 'left', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC' }}>{h}</th>
+                  <th key={h} style={{ padding: '12px 20px', fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.8px', textAlign: 'left', borderBottom: `1px solid ${border}`, background: surfaceSoft }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {payments.map((p: any) => (
-                <tr key={p.id} style={{ borderBottom: '1px solid #F1F5F9' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
+                <tr key={p.id} style={{ borderBottom: `1px solid ${border}` }}
+                  onMouseEnter={e => e.currentTarget.style.background = surfaceSoft}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, color: '#0F172A', fontFamily: 'monospace' }}>{p.invoice?.invoice_number || '—'}</td>
-                  <td style={{ padding: '14px 20px', fontSize: 13, color: '#334155' }}>{p.invoice?.client?.name || '—'}</td>
+                  <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, color: text, fontFamily: 'monospace' }}>{p.invoice?.invoice_number || '—'}</td>
+                  <td style={{ padding: '14px 20px', fontSize: 13, color: muted }}>{p.invoice?.client?.name || '—'}</td>
                   <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#059669' }}>+{fmtXof(Number(p.amount))}</td>
                   <td style={{ padding: '14px 20px' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, background: METHOD_COLORS[p.method]?.bg, color: METHOD_COLORS[p.method]?.color }}>
@@ -262,7 +279,7 @@ export default function PaymentsPage() {
                     </span>
                   </td>
                   <td style={{ padding: '14px 20px', fontSize: 12, color: '#94A3B8', fontFamily: 'monospace' }}>{p.reference || '—'}</td>
-                  <td style={{ padding: '14px 20px', fontSize: 13, color: '#64748B' }}>{fmtDate(p.paid_at)}</td>
+                  <td style={{ padding: '14px 20px', fontSize: 13, color: muted }}>{fmtDate(p.paid_at)}</td>
                   <td style={{ padding: '14px 20px' }}>
                     <button onClick={() => handleDelete(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', padding: 0 }}>Supprimer</button>
                   </td>

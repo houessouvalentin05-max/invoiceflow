@@ -11,13 +11,15 @@ const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
 const STATUS_LABELS: Record<string, string> = {
-  paid: 'Payée', pending: 'En attente', overdue: 'En retard', draft: 'Brouillon',
+  paid: 'Payée', pending: 'En attente', overdue: 'En retard', draft: 'Brouillon', sent: 'Envoyée', viewed: 'Vue',
 }
 const STATUS_COLORS: Record<string, { bg: string; color: string; dot: string }> = {
   paid:    { bg: 'rgba(16,185,129,0.1)',  color: '#059669', dot: '#10B981' },
   pending: { bg: 'rgba(245,158,11,0.12)', color: '#D97706', dot: '#F59E0B' },
   overdue: { bg: 'rgba(239,68,68,0.1)',   color: '#DC2626', dot: '#EF4444' },
   draft:   { bg: 'rgba(100,116,139,0.1)', color: '#475569', dot: '#94A3B8' },
+  sent:    { bg: 'rgba(37,99,235,0.1)',   color: '#2563EB', dot: '#2563EB' },
+  viewed:  { bg: 'rgba(124,58,237,0.1)',  color: '#7C3AED', dot: '#7C3AED' },
 }
 
 export default function InvoicesPage() {
@@ -151,7 +153,7 @@ export default function InvoicesPage() {
           { label: 'En attente', value: String(stats.pending), color: '#D97706', bg: 'rgba(245,158,11,0.08)' },
           { label: 'En retard', value: String(stats.overdue), color: '#DC2626', bg: 'rgba(239,68,68,0.08)' },
         ].map(s => (
-          <div key={s.label} style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div key={s.label} style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 14, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 8px 24px -14px rgba(15, 23, 42, 0.2)' }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
             <div>
               <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{s.label}</div>
@@ -168,7 +170,7 @@ export default function InvoicesPage() {
       )}
 
       {/* Filters */}
-      <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 14, padding: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', boxShadow: '0 10px 28px -18px rgba(15, 23, 42, 0.2)' }}>
         <div style={{ position: 'relative', flex: '1', minWidth: 200 }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14 }}>
             <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>

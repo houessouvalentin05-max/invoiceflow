@@ -97,7 +97,7 @@ export default function ClientsPage() {
 
       {/* Form */}
       {showForm && (
-        <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: 24, animation: 'fadeUp 0.3s ease-out' }}>
+        <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: 24, animation: 'fadeUp 0.3s ease-out', boxShadow: '0 10px 30px -18px rgba(15, 23, 42, 0.25)' }}>
           <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', margin: '0 0 20px' }}>Nouveau client</h2>
           <form onSubmit={handleSubmit}>
@@ -153,7 +153,7 @@ export default function ClientsPage() {
       )}
 
       {/* Search + View toggle */}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14 }}>
             <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
@@ -189,7 +189,7 @@ export default function ClientsPage() {
       {loading ? (
         <div style={{ padding: '48px 24px', textAlign: 'center', color: '#64748B', fontSize: 14 }}>Chargement...</div>
       ) : filtered.length === 0 ? (
-        <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: '56px 24px', textAlign: 'center' }}>
+        <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: '56px 24px', textAlign: 'center', boxShadow: '0 10px 30px -18px rgba(15, 23, 42, 0.2)' }}>
           <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(37,99,235,0.08)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 26, height: 26 }}>
               <circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3 2.4-5.4 6-5.4s6 2.4 6 5.4"/>
@@ -215,7 +215,7 @@ export default function ClientsPage() {
           {filtered.map(c => (
             <div key={c.id} style={{
               background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: 22,
-              transition: 'all 0.25s', position: 'relative', cursor: 'default'
+              transition: 'all 0.25s', position: 'relative', cursor: 'default', boxShadow: '0 12px 28px -18px rgba(15, 23, 42, 0.22)'
             }}
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 14px 32px -16px rgba(17,24,39,0.2)'; e.currentTarget.style.borderColor = '#CBD5E1' }}
               onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#E2E8F0' }}

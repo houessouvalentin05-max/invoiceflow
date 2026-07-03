@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useDashboardTheme } from '@/app/dashboard/theme-context'
 
 const fmtXof = (n: number) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n || 0) + ' XOF'
@@ -12,13 +13,15 @@ const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
 const STATUS_LABELS: Record<string, string> = {
-  paid: 'Payée', pending: 'En attente', overdue: 'En retard', draft: 'Brouillon',
+  paid: 'Payée', pending: 'En attente', overdue: 'En retard', draft: 'Brouillon', sent: 'Envoyée', viewed: 'Vue',
 }
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   paid:    { bg: 'rgba(16,185,129,0.1)',  color: '#059669' },
   pending: { bg: 'rgba(245,158,11,0.12)', color: '#D97706' },
   overdue: { bg: 'rgba(239,68,68,0.1)',   color: '#DC2626' },
   draft:   { bg: 'rgba(100,116,139,0.1)', color: '#475569' },
+  sent:    { bg: 'rgba(37,99,235,0.1)',   color: '#2563EB' },
+  viewed:  { bg: 'rgba(124,58,237,0.1)',  color: '#7C3AED' },
 }
 
 const KPI_ICONS = {
@@ -59,17 +62,26 @@ function CustomTooltip({ active, payload, label }: any) {
   )
 }
 
-function SkeletonCard() {
+function SkeletonCard({ isDark }: { isDark: boolean }) {
   return (
-    <div style={{background:'#fff',border:'1px solid #E2E8F0',borderRadius:16,padding:22}}>
-      <div style={{width:42,height:42,borderRadius:12,background:'#F1F5F9',marginBottom:14}}/>
-      <div style={{width:80,height:10,borderRadius:4,background:'#F1F5F9',marginBottom:10}}/>
-      <div style={{width:120,height:28,borderRadius:6,background:'#F1F5F9'}}/>
+    <div style={{background: isDark ? '#111827' : '#fff', border: `1px solid ${isDark ? '#334155' : '#E2E8F0'}`, borderRadius:16, padding:22}}>
+      <div style={{width:42,height:42,borderRadius:12,background: isDark ? '#1F2937' : '#F1F5F9',marginBottom:14}}/>
+      <div style={{width:80,height:10,borderRadius:4,background: isDark ? '#1F2937' : '#F1F5F9',marginBottom:10}}/>
+      <div style={{width:120,height:28,borderRadius:6,background: isDark ? '#1F2937' : '#F1F5F9'}}/>
     </div>
   )
 }
 
 export default function DashboardPage() {
+  const { theme } = useDashboardTheme()
+  const isDark = theme === 'dark'
+  const surface = isDark ? '#111827' : '#fff'
+  const surfaceSoft = isDark ? '#1F2937' : '#F8FAFC'
+  const border = isDark ? '#334155' : '#E2E8F0'
+  const text = isDark ? '#F8FAFC' : '#0F172A'
+  const muted = isDark ? '#94A3B8' : '#64748B'
+  const subtle = isDark ? '#1E293B' : '#F1F5F9'
+
   const [invoices, setInvoices] = useState<any[]>([])
   const [clientsCount, setClientsCount] = useState(0)
   const [email, setEmail] = useState('')
@@ -172,13 +184,13 @@ export default function DashboardPage() {
       {/* Header */}
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',flexWrap:'wrap',gap:16}}>
         <div>
-          <h1 style={{fontSize:28,fontWeight:800,color:'#0F172A',letterSpacing:'-0.7px',margin:'0 0 4px'}}>
+          <h1 style={{fontSize:28,fontWeight:800,color:text,letterSpacing:'-0.7px',margin:'0 0 4px'}}>
             Bonjour 👋{greet ? `, ${greet}` : ''}
           </h1>
-          <p style={{fontSize:14,color:'#64748B',margin:0}}>Voici un aperçu de votre activité.</p>
+          <p style={{fontSize:14,color:muted,margin:0}}>Voici un aperçu de votre activité.</p>
         </div>
-        <div style={{display:'flex',gap:10}}>
-          <Link href="/dashboard/clients" style={{height:40,padding:'0 16px',borderRadius:10,border:'1px solid #E2E8F0',background:'#fff',color:'#0F172A',fontSize:13,fontWeight:600,display:'inline-flex',alignItems:'center',gap:6,textDecoration:'none'}}>
+        <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+          <Link href="/dashboard/clients" style={{height:40,padding:'0 16px',borderRadius:10,border:`1px solid ${border}`,background:surface,color:text,fontSize:13,fontWeight:600,display:'inline-flex',alignItems:'center',gap:6,textDecoration:'none'}}>
             + Nouveau client
           </Link>
           <Link href="/dashboard/invoices/new" style={{height:40,padding:'0 16px',borderRadius:10,background:'linear-gradient(135deg,#2563EB,#7C3AED)',color:'#fff',fontSize:13,fontWeight:600,display:'inline-flex',alignItems:'center',gap:6,textDecoration:'none',boxShadow:'0 4px 14px -4px rgba(79,70,229,0.5)'}}>
@@ -188,24 +200,25 @@ export default function DashboardPage() {
       </div>
 
       {/* KPIs */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:16}}>
         {loading ? (
-          <>{Array(4).fill(0).map((_, i) => <SkeletonCard key={i}/>)}</>
+          <>{Array(4).fill(0).map((_, i) => <SkeletonCard key={i} isDark={isDark}/>)}</>
         ) : kpis.map((k, idx) => (
           <div key={k.label} style={{
-              background:'#fff',border:'1px solid #E2E8F0',borderRadius:16,padding:22,
+              background:surface,border:`1px solid ${border}`,borderRadius:16,padding:22,
               animation:`fadeUp 0.4s ease-out ${idx * 0.08}s both`,
               transformStyle:'preserve-3d',transition:'all 0.3s ease',cursor:'default',
+              boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)',
             }}
             onMouseEnter={e => {
               e.currentTarget.style.transform='translateY(-4px) rotateX(3deg) rotateY(-2deg)'
-              e.currentTarget.style.boxShadow='0 20px 40px -12px rgba(124,58,237,0.25)'
-              e.currentTarget.style.borderColor='#DDD6FE'
+              e.currentTarget.style.boxShadow=isDark ? '0 20px 40px -14px rgba(2, 6, 23, 0.55)' : '0 20px 40px -12px rgba(124,58,237,0.25)'
+              e.currentTarget.style.borderColor=isDark ? '#475569' : '#DDD6FE'
             }}
             onMouseLeave={e => {
               e.currentTarget.style.transform='translateY(0) rotateX(0) rotateY(0)'
-              e.currentTarget.style.boxShadow='none'
-              e.currentTarget.style.borderColor='#E2E8F0'
+              e.currentTarget.style.boxShadow=isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)'
+              e.currentTarget.style.borderColor=border
             }}
               >
             <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
@@ -219,23 +232,23 @@ export default function DashboardPage() {
                 </span>
               )}
             </div>
-            <div style={{fontSize:11.5,color:'#64748B',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>{k.label}</div>
-            <div style={{fontSize:28,fontWeight:800,color:'#0F172A',letterSpacing:'-0.8px',lineHeight:1}}>{k.value}</div>
-            <div style={{fontSize:12,color:'#94A3B8',marginTop:8}}>vs mois dernier</div>
+            <div style={{fontSize:11.5,color:muted,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>{k.label}</div>
+            <div style={{fontSize:28,fontWeight:800,color:text,letterSpacing:'-0.8px',lineHeight:1}}>{k.value}</div>
+            <div style={{fontSize:12,color:isDark ? '#94A3B8' : '#94A3B8',marginTop:8}}>vs mois dernier</div>
           </div>
         ))}
       </div>
 
       {/* Chart */}
-      <div style={{background:'#fff',border:'1px solid #E2E8F0',borderRadius:16,padding:24}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
-          <h2 style={{fontSize:15,fontWeight:700,color:'#0F172A',margin:0}}>Aperçu des revenus</h2>
-          <div style={{display:'inline-flex',gap:4,background:'#F1F5F9',padding:3,borderRadius:9}}>
+      <div style={{background:surface,border:`1px solid ${border}`,borderRadius:16,padding:24,boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20,flexWrap:'wrap',gap:12}}>
+          <h2 style={{fontSize:15,fontWeight:700,color:text,margin:0}}>Aperçu des revenus</h2>
+          <div style={{display:'inline-flex',gap:4,background:subtle,padding:3,borderRadius:9}}>
             {(['7j','30j','6m','1y'] as const).map(t => (
               <button key={t} onClick={() => setChartTab(t)} style={{
                 padding:'6px 12px',fontSize:12,fontWeight:600,borderRadius:7,border:'none',cursor:'pointer',fontFamily:'inherit',
-                background:chartTab===t?'#fff':'transparent',
-                color:chartTab===t?'#0F172A':'#64748B',
+                background:chartTab===t?surface:'transparent',
+                color:chartTab===t?text:muted,
                 boxShadow:chartTab===t?'0 1px 3px rgba(0,0,0,0.08)':'none',
                 transition:'all 0.2s'
               }}>
@@ -252,7 +265,7 @@ export default function DashboardPage() {
                 <stop offset="100%" stopColor="#4F46E5" stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false}/>
+            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#334155' : '#F1F5F9'} vertical={false}/>
             <XAxis dataKey="label" tick={{fontSize:11,fill:'#94A3B8'}} axisLine={false} tickLine={false}/>
             <YAxis tickFormatter={v => v === 0 ? '0' : `${Math.round(v/1000)}k`} tick={{fontSize:11,fill:'#94A3B8'}} axisLine={false} tickLine={false} width={40}/>
             <Tooltip content={<CustomTooltip/>}/>
@@ -269,9 +282,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent invoices */}
-      <div style={{background:'#fff',border:'1px solid #E2E8F0',borderRadius:16,overflow:'hidden'}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 24px',borderBottom:'1px solid #F1F5F9',background:'#F8FAFC'}}>
-          <h2 style={{fontSize:15,fontWeight:700,color:'#0F172A',margin:0}}>Factures récentes</h2>
+      <div style={{background:surface,border:`1px solid ${border}`,borderRadius:16,overflow:'hidden',boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 24px',borderBottom:`1px solid ${isDark ? '#334155' : '#F1F5F9'}`,background:surfaceSoft}}>
+          <h2 style={{fontSize:15,fontWeight:700,color:text,margin:0}}>Factures récentes</h2>
           <Link href="/dashboard/invoices" style={{fontSize:13,color:'#2563EB',fontWeight:600,textDecoration:'none'}}>Voir tout →</Link>
         </div>
         {recent.length === 0 ? (
@@ -293,29 +306,29 @@ export default function DashboardPage() {
             <thead>
               <tr>
                 {['N° Facture','Client','Montant','Statut','Date','Actions'].map(h => (
-                  <th key={h} style={{padding:'12px 20px',fontSize:11,fontWeight:700,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.8px',textAlign:'left',borderBottom:'1px solid #E2E8F0',background:'#F8FAFC'}}>{h}</th>
+                  <th key={h} style={{padding:'12px 20px',fontSize:11,fontWeight:700,color:muted,textTransform:'uppercase',letterSpacing:'0.8px',textAlign:'left',borderBottom:`1px solid ${border}`,background:surfaceSoft}}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {recent.map((inv: any) => (
-                <tr key={inv.id} style={{borderBottom:'1px solid #F1F5F9',transition:'background 0.15s'}}
-                  onMouseEnter={e => (e.currentTarget.style.background='#F8FAFC')}
+                <tr key={inv.id} style={{borderBottom:`1px solid ${isDark ? '#334155' : '#F1F5F9'}`,transition:'background 0.15s'}}
+                  onMouseEnter={e => (e.currentTarget.style.background=surfaceSoft)}
                   onMouseLeave={e => (e.currentTarget.style.background='transparent')}
                 >
-                  <td style={{padding:'16px 20px',fontSize:13,fontWeight:600,color:'#0F172A',fontFamily:'monospace'}}>{inv.invoice_number}</td>
-                  <td style={{padding:'16px 20px',fontSize:13,color:'#334155'}}>{inv.client?.name || '—'}</td>
-                  <td style={{padding:'16px 20px',fontSize:13,fontWeight:700,color:'#0F172A'}}>{fmtXof(Number(inv.amount))}</td>
+                  <td style={{padding:'16px 20px',fontSize:13,fontWeight:600,color:text,fontFamily:'monospace'}}>{inv.invoice_number}</td>
+                  <td style={{padding:'16px 20px',fontSize:13,color:muted}}>{inv.client?.name || '—'}</td>
+                  <td style={{padding:'16px 20px',fontSize:13,fontWeight:700,color:text}}>{fmtXof(Number(inv.total || 0))}</td>
                   <td style={{padding:'16px 20px'}}>
                     <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:999,fontSize:11.5,fontWeight:600,background:STATUS_COLORS[inv.status]?.bg||'#F1F5F9',color:STATUS_COLORS[inv.status]?.color||'#475569'}}>
                       <span style={{width:6,height:6,borderRadius:'50%',background:'currentColor',display:'inline-block'}}/>
                       {STATUS_LABELS[inv.status]||inv.status}
                     </span>
                   </td>
-                  <td style={{padding:'16px 20px',fontSize:13,color:'#64748B'}}>{fmtDate(inv.issue_date)}</td>
+                  <td style={{padding:'16px 20px',fontSize:13,color:muted}}>{fmtDate(inv.issue_date)}</td>
                   <td style={{padding:'16px 20px'}}>
                     <div style={{display:'flex',gap:6,justifyContent:'flex-end'}}>
-                      <Link href={`/dashboard/invoices/${inv.id}`} style={{width:30,height:30,borderRadius:8,border:'1px solid #E2E8F0',background:'#fff',display:'grid',placeItems:'center',textDecoration:'none',color:'#64748B'}}>
+                      <Link href={`/dashboard/invoices/${inv.id}`} style={{width:30,height:30,borderRadius:8,border:`1px solid ${border}`,background:surface,display:'grid',placeItems:'center',textDecoration:'none',color:muted}}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:14,height:14}}>
                           <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
                           <circle cx="12" cy="12" r="3"/>

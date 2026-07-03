@@ -3,24 +3,35 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getAuthenticatedClient } from '@/lib/supabase/client'
+import { useDashboardTheme } from '@/app/dashboard/theme-context'
 
 interface Client { id: string; name: string }
 interface Item { description: string; quantity: number; unit_price: number }
 
-const inputStyle: React.CSSProperties = {
-  width: '100%', height: 42, border: '1px solid #E2E8F0', borderRadius: 10,
-  padding: '0 14px', fontSize: 14, color: '#0F172A', background: '#F8FAFC',
-  outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', transition: 'border-color 0.2s'
-}
-const labelStyle: React.CSSProperties = {
-  display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6
-}
-const sectionStyle: React.CSSProperties = {
-  background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: 24
-}
-
 export default function NewInvoicePage() {
   const router = useRouter()
+  const { theme } = useDashboardTheme()
+  const isDark = theme === 'dark'
+  const surface = isDark ? '#111827' : '#ffffff'
+  const surfaceSoft = isDark ? '#1F2937' : '#F8FAFC'
+  const border = isDark ? '#334155' : '#E2E8F0'
+  const text = isDark ? '#F8FAFC' : '#0F172A'
+  const muted = isDark ? '#94A3B8' : '#64748B'
+  const accent = '#2563EB'
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', height: 42, border: `1px solid ${border}`, borderRadius: 10,
+    padding: '0 14px', fontSize: 14, color: text, background: surfaceSoft,
+    outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', transition: 'border-color 0.2s'
+  }
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontSize: 13, fontWeight: 600, color: muted, marginBottom: 6
+  }
+  const sectionStyle: React.CSSProperties = {
+    background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 24,
+    boxShadow: isDark ? '0 10px 28px -18px rgba(2, 6, 23, 0.65)' : '0 10px 28px -18px rgba(15, 23, 42, 0.25)'
+  }
+
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -108,24 +119,19 @@ export default function NewInvoicePage() {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-      {/* Header */}
       <div>
-        <button type="button" onClick={() => router.back()} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#64748B', fontWeight: 600, fontFamily: 'inherit', padding: 0, marginBottom: 12 }}>
+        <button type="button" onClick={() => router.back()} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: muted, fontWeight: 600, fontFamily: 'inherit', padding: 0, marginBottom: 12 }}>
           ← Retour
         </button>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#2563EB', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Nouvelle facture</div>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.7px', margin: '0 0 6px' }}>Créer une facture</h1>
-        <p style={{ fontSize: 14, color: '#64748B', margin: 0 }}>Remplissez les informations ci-dessous pour générer votre facture.</p>
+        <div style={{ fontSize: 11, fontWeight: 700, color: accent, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Nouvelle facture</div>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: text, letterSpacing: '-0.7px', margin: '0 0 6px' }}>Créer une facture</h1>
+        <p style={{ fontSize: 14, color: muted, margin: 0 }}>Remplissez les informations ci-dessous pour générer une facture professionnelle et prête à envoyer.</p>
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-        {/* Infos */}
         <div style={sectionStyle}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', margin: '0 0 20px' }}>Informations générales</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: text, margin: '0 0 20px' }}>Informations générales</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-
             <div>
               <label style={labelStyle}>Client <span style={{ color: '#DC2626' }}>*</span></label>
               <select value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })} required
@@ -138,7 +144,7 @@ export default function NewInvoicePage() {
             <div>
               <label style={labelStyle}>N° Facture <span style={{ color: '#DC2626' }}>*</span></label>
               <input value={form.invoice_number} onChange={e => setForm({ ...form, invoice_number: e.target.value })} required style={inputStyle}
-                onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = '#E2E8F0'} />
+                onFocus={e => e.currentTarget.style.borderColor = accent} onBlur={e => e.currentTarget.style.borderColor = border} />
             </div>
 
             <div>
@@ -154,7 +160,7 @@ export default function NewInvoicePage() {
             <div>
               <label style={labelStyle}>Date d'échéance</label>
               <input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} style={inputStyle}
-                onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = '#E2E8F0'} />
+                onFocus={e => e.currentTarget.style.borderColor = accent} onBlur={e => e.currentTarget.style.borderColor = border} />
             </div>
 
             <div>
@@ -165,23 +171,20 @@ export default function NewInvoicePage() {
                 <option value="USD">USD ($)</option>
               </select>
             </div>
-
           </div>
         </div>
 
-        {/* Articles */}
         <div style={sectionStyle}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', margin: 0 }}>Articles</h2>
-            <button type="button" onClick={addItem} style={{ height: 36, padding: '0 14px', borderRadius: 9, border: '1px solid #E2E8F0', background: '#F8FAFC', fontSize: 13, fontWeight: 600, color: '#2563EB', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: text, margin: 0 }}>Articles</h2>
+            <button type="button" onClick={addItem} style={{ height: 36, padding: '0 14px', borderRadius: 9, border: `1px solid ${border}`, background: surfaceSoft, fontSize: 13, fontWeight: 600, color: accent, cursor: 'pointer', fontFamily: 'inherit' }}>
               + Ajouter une ligne
             </button>
           </div>
 
-          {/* Header */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 100px 32px', gap: 10, marginBottom: 8 }}>
             {['Description', 'Qté', 'Prix unitaire', 'Total', ''].map(h => (
-              <div key={h} style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</div>
+              <div key={h} style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</div>
             ))}
           </div>
 
@@ -189,14 +192,14 @@ export default function NewInvoicePage() {
             <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 100px 32px', gap: 10, marginBottom: 10, alignItems: 'center' }}>
               <input value={item.description} onChange={e => updateItem(i, 'description', e.target.value)}
                 placeholder="Description de l'article" required style={inputStyle}
-                onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = '#E2E8F0'} />
+                onFocus={e => e.currentTarget.style.borderColor = accent} onBlur={e => e.currentTarget.style.borderColor = border} />
               <input type="number" value={item.quantity} min={1} onChange={e => updateItem(i, 'quantity', Number(e.target.value))}
                 style={{ ...inputStyle, padding: '0 10px', textAlign: 'center' }}
-                onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = '#E2E8F0'} />
+                onFocus={e => e.currentTarget.style.borderColor = accent} onBlur={e => e.currentTarget.style.borderColor = border} />
               <input type="number" value={item.unit_price} min={0} onChange={e => updateItem(i, 'unit_price', Number(e.target.value))}
                 placeholder="0" style={{ ...inputStyle, padding: '0 10px' }}
-                onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = '#E2E8F0'} />
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', textAlign: 'right' }}>
+                onFocus={e => e.currentTarget.style.borderColor = accent} onBlur={e => e.currentTarget.style.borderColor = border} />
+              <div style={{ fontSize: 13, fontWeight: 700, color: text, textAlign: 'right' }}>
                 {fmtNum(item.quantity * item.unit_price)}
               </div>
               {items.length > 1 ? (
@@ -206,7 +209,6 @@ export default function NewInvoicePage() {
           ))}
         </div>
 
-        {/* Notes */}
         <div style={sectionStyle}>
           <label style={labelStyle}>Notes / Conditions (optionnel)</label>
           <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
@@ -214,21 +216,20 @@ export default function NewInvoicePage() {
             style={{ ...inputStyle, height: 80, padding: '10px 14px', resize: 'vertical' as const }} />
         </div>
 
-        {/* Total */}
-        <div style={{ ...sectionStyle, background: 'linear-gradient(135deg,#F8FAFC,#EEF2FF)' }}>
+        <div style={{ ...sectionStyle, background: isDark ? 'linear-gradient(135deg,#111827,#1D4ED8)' : 'linear-gradient(135deg,#F8FAFC,#EEF2FF)' }}>
           <div style={{ maxWidth: 320, marginLeft: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#64748B' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: isDark ? '#CBD5E1' : '#64748B' }}>
               <span>Sous-total</span>
-              <span style={{ fontWeight: 600, color: '#0F172A' }}>{fmtNum(subtotal)} {form.currency}</span>
+              <span style={{ fontWeight: 600, color: text }}>{fmtNum(subtotal)} {form.currency}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#64748B' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: isDark ? '#CBD5E1' : '#64748B' }}>
               <span>TVA (18%)</span>
-              <span style={{ fontWeight: 600, color: '#0F172A' }}>{fmtNum(tax)} {form.currency}</span>
+              <span style={{ fontWeight: 600, color: text }}>{fmtNum(tax)} {form.currency}</span>
             </div>
-            <div style={{ height: 1, background: '#E2E8F0' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 20, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
+            <div style={{ height: 1, background: isDark ? '#334155' : '#E2E8F0' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 20, fontWeight: 800, color: text, letterSpacing: '-0.5px' }}>
               <span>Total</span>
-              <span style={{ color: '#2563EB' }}>{fmtNum(total)} {form.currency}</span>
+              <span style={{ color: isDark ? '#BFDBFE' : '#2563EB' }}>{fmtNum(total)} {form.currency}</span>
             </div>
           </div>
         </div>
@@ -239,8 +240,7 @@ export default function NewInvoicePage() {
           </div>
         )}
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button type="submit" disabled={loading} style={{
             height: 44, padding: '0 24px', borderRadius: 10,
             background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff',
@@ -251,8 +251,8 @@ export default function NewInvoicePage() {
             {loading ? 'Création...' : 'Créer la facture →'}
           </button>
           <button type="button" onClick={() => router.back()} style={{
-            height: 44, padding: '0 20px', borderRadius: 10, border: '1px solid #E2E8F0',
-            background: '#fff', color: '#64748B', fontSize: 14, fontWeight: 600,
+            height: 44, padding: '0 20px', borderRadius: 10, border: `1px solid ${border}`,
+            background: surface, color: muted, fontSize: 14, fontWeight: 600,
             cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s'
           }}>
             Annuler
