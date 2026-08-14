@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useDashboardTheme } from '@/app/dashboard/theme-context'
+import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS, type InvoiceStatus } from '@/lib/invoice-meta'
 
 const fmtXof = (n: number) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n || 0) + ' XOF'
@@ -12,16 +13,14 @@ const fmtXof = (n: number) =>
 const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
-const STATUS_LABELS: Record<string, string> = {
-  paid: 'Payée', pending: 'En attente', overdue: 'En retard', draft: 'Brouillon', sent: 'Envoyée', viewed: 'Vue',
-}
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  paid:    { bg: 'rgba(16,185,129,0.1)',  color: '#059669' },
-  pending: { bg: 'rgba(245,158,11,0.12)', color: '#D97706' },
-  overdue: { bg: 'rgba(239,68,68,0.1)',   color: '#DC2626' },
-  draft:   { bg: 'rgba(100,116,139,0.1)', color: '#475569' },
-  sent:    { bg: 'rgba(37,99,235,0.1)',   color: '#2563EB' },
-  viewed:  { bg: 'rgba(124,58,237,0.1)',  color: '#7C3AED' },
+interface InvoiceRow {
+  id: string
+  invoice_number: string
+  total: number
+  status: string
+  issue_date: string | null
+  paid_at: string | null
+  client?: { name?: string } | null
 }
 
 const KPI_ICONS = {
@@ -52,12 +51,12 @@ const KPI_ICONS = {
   ),
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string | number }) {
   if (!active || !payload?.length) return null
   return (
     <div style={{background:'#111827',borderRadius:10,padding:'10px 14px',boxShadow:'0 4px 20px rgba(0,0,0,0.25)',border:'1px solid rgba(255,255,255,0.08)'}}>
       <div style={{fontSize:11,color:'#94A3B8',marginBottom:4}}>{label}</div>
-      <div style={{fontSize:14,fontWeight:700,color:'#fff'}}>{fmtXof(payload[0].value)}</div>
+      <div style={{fontSize:14,fontWeight:700,color:'#fff'}}>{fmtXof(payload[0]?.value ?? 0)}</div>
     </div>
   )
 }
@@ -82,30 +81,31 @@ export default function DashboardPage() {
   const muted = isDark ? '#94A3B8' : '#64748B'
   const subtle = isDark ? '#1E293B' : '#F1F5F9'
 
-  const [invoices, setInvoices] = useState<any[]>([])
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([])
   const [clientsCount, setClientsCount] = useState(0)
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(true)
   const [chartTab, setChartTab] = useState<'7j'|'30j'|'6m'|'1y'>('7j')
 
   useEffect(() => {
-    const supabase = createClient()
     async function load() {
-      const [{ data: { user } }, { data: inv, error }, { count }] = await Promise.all([
+      const supabase = createClient()
+      const [{ data: { user } }, resInv, resCli] = await Promise.all([
         supabase.auth.getUser(),
-        supabase.from('invoices').select('id,invoice_number,total,status,issue_date,paid_at,client:clients(name)').order('created_at', { ascending: false }),
-        supabase.from('clients').select('*', { count: 'exact', head: true }),
+        fetch('/api/invoices'),
+        fetch('/api/clients'),
       ])
 
-      if (error) {
-        console.error('Supabase error:', error)
+      if (!resInv.ok || !resCli.ok) {
         setLoading(false)
         return
       }
 
+      const inv: InvoiceRow[] = await resInv.json()
+      const clients: unknown[] = await resCli.json()
       setEmail(user?.email || '')
       setInvoices(inv || [])
-      setClientsCount(count || 0)
+      setClientsCount((clients || []).length)
       setLoading(false)
     }
     void load()
@@ -117,7 +117,10 @@ export default function DashboardPage() {
   const prevMonth = new Date(curYear, curMonth - 1, 1).getMonth()
   const prevYear = new Date(curYear, curMonth - 1, 1).getFullYear()
 
-  const paidDate = (i: any) => (i.paid_at ?? i.issue_date) ? new Date(i.paid_at ?? i.issue_date) : null
+  const paidDate = (i: InvoiceRow) => {
+    const d = i.paid_at ?? i.issue_date
+    return d ? new Date(d) : null
+  }
   const paidInvoices = invoices.filter(i => i.status === 'paid' && paidDate(i))
   const inMonth = (d: Date, m: number, y: number) => d.getMonth() === m && d.getFullYear() === y
 
@@ -137,9 +140,9 @@ export default function DashboardPage() {
   const greet = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : ''
   const recent = invoices.slice(0, 6)
 
-  const chartData = useMemo(() => {
+  const chartData = (() => {
     const paid = invoices.filter(i => i.status === 'paid' && (i.paid_at ?? i.issue_date))
-    const getDate = (i: any) => new Date(i.paid_at ?? i.issue_date)
+    const getDate = (i: InvoiceRow) => new Date((i.paid_at ?? i.issue_date)!)
 
     const buildDaily = (days: number) => {
       return Array.from({ length: days }, (_, k) => {
@@ -169,7 +172,7 @@ export default function DashboardPage() {
     if (chartTab === '30j') return buildDaily(30)
     if (chartTab === '6m') return buildMonthly(6)
     return buildMonthly(12)
-  }, [invoices, chartTab])
+  })()
 
   const kpis = [
     { label: 'Revenus ce mois', value: fmtXof(monthRevenue), icon: 'revenue', color: '#2563EB', bg: 'rgba(37,99,235,0.1)', trend: trend(monthRevenue, prevRevenue) },
@@ -311,7 +314,7 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {recent.map((inv: any) => (
+              {recent.map((inv: InvoiceRow) => (
                 <tr key={inv.id} style={{borderBottom:`1px solid ${isDark ? '#334155' : '#F1F5F9'}`,transition:'background 0.15s'}}
                   onMouseEnter={e => (e.currentTarget.style.background=surfaceSoft)}
                   onMouseLeave={e => (e.currentTarget.style.background='transparent')}
@@ -320,9 +323,9 @@ export default function DashboardPage() {
                   <td style={{padding:'16px 20px',fontSize:13,color:muted}}>{inv.client?.name || '—'}</td>
                   <td style={{padding:'16px 20px',fontSize:13,fontWeight:700,color:text}}>{fmtXof(Number(inv.total || 0))}</td>
                   <td style={{padding:'16px 20px'}}>
-                    <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:999,fontSize:11.5,fontWeight:600,background:STATUS_COLORS[inv.status]?.bg||'#F1F5F9',color:STATUS_COLORS[inv.status]?.color||'#475569'}}>
+                    <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:999,fontSize:11.5,fontWeight:600,background:INVOICE_STATUS_COLORS[inv.status as InvoiceStatus]?.bg||'#F1F5F9',color:INVOICE_STATUS_COLORS[inv.status as InvoiceStatus]?.color||'#475569'}}>
                       <span style={{width:6,height:6,borderRadius:'50%',background:'currentColor',display:'inline-block'}}/>
-                      {STATUS_LABELS[inv.status]||inv.status}
+                      {INVOICE_STATUS_LABELS[inv.status as InvoiceStatus]||inv.status}
                     </span>
                   </td>
                   <td style={{padding:'16px 20px',fontSize:13,color:muted}}>{fmtDate(inv.issue_date)}</td>

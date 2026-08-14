@@ -18,6 +18,21 @@ const registerSchema = z.object({
 
 type RegisterInput = z.infer<typeof registerSchema>
 
+const EyeIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:16,height:16}}>
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+)
+
+const EyeOffIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:16,height:16}}>
+    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+    <line x1="1" y1="1" x2="23" y2="23"/>
+  </svg>
+)
+
 export default function RegisterPage() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
@@ -44,21 +59,6 @@ export default function RegisterPage() {
     }
     router.push('/dashboard')
   }
-
-  const EyeIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:16,height:16}}>
-      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
-      <circle cx="12" cy="12" r="3"/>
-    </svg>
-  )
-
-  const EyeOffIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:16,height:16}}>
-      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
-      <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
-      <line x1="1" y1="1" x2="23" y2="23"/>
-    </svg>
-  )
 
   return (
     <main style={{minHeight:'100vh',display:'flex',fontFamily:'Inter,system-ui,sans-serif',background:'#F8FAFC'}}>
@@ -92,7 +92,7 @@ export default function RegisterPage() {
         {/* Center content */}
         <div style={{position:'relative',zIndex:1}}>
           <h2 style={{fontSize:32,fontWeight:800,color:'#fff',letterSpacing:'-0.8px',lineHeight:1.2,margin:'0 0 16px'}}>
-            La facturation pensée pour l'Afrique
+            La facturation pensée pour l&apos;Afrique
           </h2>
           <p style={{fontSize:15,color:'rgba(255,255,255,0.55)',lineHeight:1.7,margin:'0 0 40px'}}>
             Créez des factures professionnelles, acceptez MTN MoMo & Orange Money, et suivez vos paiements en temps réel.
@@ -224,7 +224,7 @@ export default function RegisterPage() {
 
           <p style={{fontSize:12,color:'#94A3B8',textAlign:'center',marginTop:32}}>
             En vous inscrivant, vous acceptez nos{' '}
-            <a href="#" style={{color:'#2563EB',textDecoration:'none'}}>conditions d'utilisation</a>
+            <a href="#" style={{color:'#2563EB',textDecoration:'none'}}>conditions d&apos;utilisation</a>
           </p>
         </div>
       </div>

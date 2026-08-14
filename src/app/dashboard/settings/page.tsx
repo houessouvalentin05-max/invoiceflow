@@ -176,8 +176,10 @@ export default function SettingsPage() {
         return
       }
 
-      const { data, error } = await supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle()
-      if (!error && data) {
+      const res = await fetch('/api/profile')
+      const data = res.ok ? await res.json() : null
+
+      if (data) {
         setProfile((prev) => ({
           ...prev,
           full_name: data.full_name || prev.full_name,
@@ -209,34 +211,24 @@ export default function SettingsPage() {
 
   const saveSection = async (section: string, payload: Partial<ProfileState>, successMessage: string) => {
     setSaving((prev) => ({ ...prev, [section]: true }))
-    const supabase = createClient()
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
 
-    if (userError || !user) {
-      setToast({ type: 'error', message: 'Session expirée. Veuillez vous reconnecter.' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setToast({ type: 'error', message: body.error || 'Erreur lors de l’enregistrement.' })
+        return
+      }
+
+      setProfile((prev) => ({ ...prev, ...payload }))
+      setToast({ type: 'success', message: successMessage })
+    } finally {
       setSaving((prev) => ({ ...prev, [section]: false }))
-      return
     }
-
-    const { error } = await supabase.from('profiles').upsert(
-      {
-        id: user.id,
-        user_id: user.id,
-        ...payload,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'id' }
-    )
-
-    setSaving((prev) => ({ ...prev, [section]: false }))
-
-    if (error) {
-      setToast({ type: 'error', message: error.message })
-      return
-    }
-
-    setProfile((prev) => ({ ...prev, ...payload }))
-    setToast({ type: 'success', message: successMessage })
   }
 
   const handleProfileSave = () => {

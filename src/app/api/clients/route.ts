@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { handleApiError } from '@/lib/api-error'
 import { listClients, addClient } from '@/features/clients/api/client.service'
 
 export async function GET() {
@@ -10,8 +11,8 @@ export async function GET() {
 
     const clients = await listClients(user.id)
     return NextResponse.json(clients)
-  } catch {
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error)
   }
 }
 
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const client = await addClient(user.id, body)
     return NextResponse.json(client, { status: 201 })
-  } catch {
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error)
   }
 }

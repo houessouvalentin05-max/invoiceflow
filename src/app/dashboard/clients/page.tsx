@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import { createClient } from '@/lib/supabase/client'
 
 interface Client {
   id: string; name: string; email: string; phone: string | null
@@ -33,27 +32,51 @@ export default function ClientsPage() {
   const [view, setView] = useState<'grid' | 'list'>('grid')
 
   async function fetchClients() {
-    const { data } = await createClient().from('clients').select('*').order('created_at', { ascending: false })
+    const res = await fetch('/api/clients')
+    if (!res.ok) { setLoading(false); return }
+    const data = await res.json()
     setClients(data || [])
     setLoading(false)
   }
 
-  useEffect(() => { fetchClients() }, [])
+  useEffect(() => {
+    let active = true
+
+    async function loadClients() {
+      const res = await fetch('/api/clients')
+      if (!active) return
+      if (!res.ok) { setLoading(false); return }
+      const data = await res.json()
+      if (!active) return
+      setClients(data || [])
+      setLoading(false)
+    }
+
+    void loadClients()
+
+    return () => { active = false }
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     setError(null)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    const { error: err } = await supabase.from('clients').insert({
-      user_id: user?.id,
-      name: form.name,
-      email: form.email || null,
-      phone: form.phone || null,
-      address: form.address || null,
+    const res = await fetch('/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: form.name,
+        email: form.email || undefined,
+        phone: form.phone || undefined,
+        address: form.address || undefined,
+      }),
     })
-    if (err) { setError(err.message); setSaving(false); return }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      setError(body.error || 'Erreur lors de la création du client.')
+      setSaving(false)
+      return
+    }
     setForm(EMPTY_FORM)
     setShowForm(false)
     setSaving(false)
@@ -62,7 +85,12 @@ export default function ClientsPage() {
 
   async function handleDelete(id: string) {
     if (!confirm('Supprimer ce client ?')) return
-    await createClient().from('clients').delete().eq('id', id)
+    const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      setError(body.error || 'Erreur lors de la suppression du client.')
+      return
+    }
     setClients(prev => prev.filter(c => c.id !== id))
   }
 

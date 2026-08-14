@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { handleApiError } from '@/lib/api-error'
 import { getInvoice, changeInvoiceStatus, removeInvoice } from '@/features/invoices/api/invoice.service'
 
 export async function GET(
@@ -14,8 +15,7 @@ export async function GET(
     const invoice = await getInvoice(id, user.id)
     return NextResponse.json(invoice)
   } catch (error) {
-    console.error('GET invoice error:', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return handleApiError(error)
   }
 }
 
@@ -32,8 +32,7 @@ export async function PATCH(
     const invoice = await changeInvoiceStatus(id, user.id, status)
     return NextResponse.json(invoice)
   } catch (error) {
-    console.error('PATCH invoice error:', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return handleApiError(error)
   }
 }
 
@@ -49,7 +48,6 @@ export async function DELETE(
     await removeInvoice(id, user.id)
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('DELETE invoice error:', error)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return handleApiError(error)
   }
 }

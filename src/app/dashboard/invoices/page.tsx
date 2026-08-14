@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
-import { getAuthenticatedClient } from '@/lib/supabase/client'
+import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS, type InvoiceStatus } from '@/lib/invoice-meta'
 
 const fmtXof = (n: number) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n || 0) + ' XOF'
@@ -10,20 +10,19 @@ const fmtXof = (n: number) =>
 const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
-const STATUS_LABELS: Record<string, string> = {
-  paid: 'Payée', pending: 'En attente', overdue: 'En retard', draft: 'Brouillon', sent: 'Envoyée', viewed: 'Vue',
-}
-const STATUS_COLORS: Record<string, { bg: string; color: string; dot: string }> = {
-  paid:    { bg: 'rgba(16,185,129,0.1)',  color: '#059669', dot: '#10B981' },
-  pending: { bg: 'rgba(245,158,11,0.12)', color: '#D97706', dot: '#F59E0B' },
-  overdue: { bg: 'rgba(239,68,68,0.1)',   color: '#DC2626', dot: '#EF4444' },
-  draft:   { bg: 'rgba(100,116,139,0.1)', color: '#475569', dot: '#94A3B8' },
-  sent:    { bg: 'rgba(37,99,235,0.1)',   color: '#2563EB', dot: '#2563EB' },
-  viewed:  { bg: 'rgba(124,58,237,0.1)',  color: '#7C3AED', dot: '#7C3AED' },
+interface InvoiceRecord {
+  id: string
+  invoice_number: string
+  total: number
+  status: string
+  issue_date: string | null
+  due_date: string | null
+  paid_at: string | null
+  client?: { name: string; email: string } | null
 }
 
 export default function InvoicesPage() {
-  const [invoices, setInvoices] = useState<any[]>([])
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -37,35 +36,24 @@ export default function InvoicesPage() {
       try {
         setLoading(true)
         setError(null)
-        const supabase = await getAuthenticatedClient()
-        const { data: { user } } = await supabase.auth.getUser()
-
-        if (!user) {
-          if (!active) return
-          setInvoices([])
-          setError('Vous devez être connecté pour voir vos factures.')
-          return
-        }
-
-        const { data, error } = await supabase.from('invoices')
-          .select('id,invoice_number,total,status,issue_date,due_date,paid_at,client:clients(name,email)')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
+        const res = await fetch('/api/invoices')
 
         if (!active) return
 
-        if (error) {
-          console.error('Supabase error:', error)
-          setLoading(false)
+        if (!res.ok) {
+          setInvoices([])
+          setError('Impossible de charger les factures.')
           return
         }
 
-        setInvoices(data || [])
+        const data = await res.json()
+        if (!active) return
+        setInvoices((data || []) as InvoiceRecord[])
       } catch (err) {
         if (!active) return
         console.error('Erreur chargement factures:', err)
         setInvoices([])
-        setError('Impossible de charger les factures. Vérifiez votre session Supabase.')
+        setError('Impossible de charger les factures.')
       } finally {
         if (active) {
           setLoading(false)
@@ -82,17 +70,18 @@ export default function InvoicesPage() {
 
   async function updateStatus(id: string, status: string) {
     try {
-      const supabase = await getAuthenticatedClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        throw new Error('Aucune session active pour mettre à jour la facture.')
+      const res = await fetch(`/api/invoices/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) {
+        throw new Error('Erreur API')
       }
-
-      await supabase.from('invoices').update({ status }).eq('id', id).eq('user_id', user.id)
       setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status } : inv))
     } catch (err) {
       console.error('Erreur mise à jour statut facture:', err)
-      setError('Le statut n’a pas pu être mis à jour. Vérifiez votre session.')
+      setError('Le statut n’a pas pu être mis à jour.')
     }
   }
 
@@ -184,7 +173,7 @@ export default function InvoicesPage() {
         </div>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ height: 38, border: '1px solid #E2E8F0', borderRadius: 10, background: '#F8FAFC', fontSize: 13, color: '#334155', padding: '0 12px', fontFamily: 'inherit', outline: 'none' }}>
           <option value="all">Tous les statuts</option>
-          {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          {Object.entries(INVOICE_STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
         <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={{ height: 38, border: '1px solid #E2E8F0', borderRadius: 10, background: '#F8FAFC', fontSize: 13, color: '#334155', padding: '0 12px', fontFamily: 'inherit', outline: 'none' }}>
           <option value="all">Tous les mois</option>
@@ -225,8 +214,8 @@ export default function InvoicesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((inv: any) => {
-                  const sc = STATUS_COLORS[inv.status] || STATUS_COLORS.draft
+                {filtered.map((inv: InvoiceRecord) => {
+                  const sc = INVOICE_STATUS_COLORS[inv.status as InvoiceStatus] || INVOICE_STATUS_COLORS.draft
                   return (
                     <tr key={inv.id} style={{ borderBottom: '1px solid #F1F5F9', transition: 'background 0.15s', cursor: 'pointer' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
@@ -246,7 +235,7 @@ export default function InvoicesPage() {
                           onChange={e => { e.stopPropagation(); void updateStatus(inv.id, e.target.value) }}
                           style={{ appearance: 'none', background: sc.bg, color: sc.color, border: 'none', borderRadius: 999, padding: '4px 10px', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
                         >
-                          {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                          {Object.entries(INVOICE_STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                         </select>
                       </td>
                       <td style={{ padding: '16px 20px', fontSize: 13, color: inv.status === 'overdue' ? '#DC2626' : '#64748B', fontWeight: inv.status === 'overdue' ? 600 : 400 }}>{fmtDate(inv.due_date)}</td>
@@ -265,17 +254,14 @@ export default function InvoicesPage() {
                               if (confirm('Supprimer cette facture ?')) {
                                 void (async () => {
                                   try {
-                                    const supabase = await getAuthenticatedClient()
-                                    const { data: { user } } = await supabase.auth.getUser()
-                                    if (!user) {
-                                      throw new Error('Aucune session active pour supprimer la facture.')
+                                    const res = await fetch(`/api/invoices/${inv.id}`, { method: 'DELETE' })
+                                    if (!res.ok) {
+                                      throw new Error('Erreur API')
                                     }
-
-                                    await supabase.from('invoices').delete().eq('id', inv.id).eq('user_id', user.id)
                                     setInvoices(prev => prev.filter(i => i.id !== inv.id))
                                   } catch (err) {
                                     console.error('Erreur suppression facture:', err)
-                                    setError('La facture n’a pas pu être supprimée. Vérifiez votre session.')
+                                    setError('La facture n’a pas pu être supprimée.')
                                   }
                                 })()
                               }

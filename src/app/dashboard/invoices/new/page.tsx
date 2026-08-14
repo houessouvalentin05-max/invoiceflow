@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { getAuthenticatedClient } from '@/lib/supabase/client'
 import { useDashboardTheme } from '@/app/dashboard/theme-context'
+import { tvaRate, INVOICE_STATUS_LABELS } from '@/lib/invoice-meta'
 
 interface Client { id: string; name: string }
 interface Item { description: string; quantity: number; unit_price: number }
@@ -35,14 +35,14 @@ export default function NewInvoicePage() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     client_id: '',
-    invoice_number: `FAC-${Math.floor(Math.random() * 900000 + 100000)}`,
     currency: 'XOF',
     due_date: '',
     status: 'draft',
     notes: '',
-  })
+  }))
+  const [defaultTva, setDefaultTva] = useState<string | null>(null)
   const [items, setItems] = useState<Item[]>([
     { description: '', quantity: 1, unit_price: 0 }
   ])
@@ -52,23 +52,39 @@ export default function NewInvoicePage() {
 
     async function loadClients() {
       try {
-        const supabase = await getAuthenticatedClient()
-        const { data, error } = await supabase.from('clients').select('id,name').order('name')
+        const res = await fetch('/api/clients')
 
         if (!active) return
 
-        if (error) {
-          console.error('Erreur chargement clients:', error)
+        if (!res.ok) {
+          console.error('Erreur chargement clients:', res.status)
           return
         }
 
+        const data = await res.json()
+        if (!active) return
         setClients(data || [])
       } catch (err) {
         console.error('Erreur session clients:', err)
       }
     }
 
+    async function loadProfile() {
+      try {
+        const res = await fetch('/api/profile')
+
+        if (!active) return
+
+        const data = res.ok ? await res.json() : null
+        if (!active) return
+        setDefaultTva(data?.default_tva ?? null)
+      } catch (err) {
+        console.error('Erreur chargement profil:', err)
+      }
+    }
+
     loadClients()
+    loadProfile()
 
     return () => {
       active = false
@@ -81,7 +97,7 @@ export default function NewInvoicePage() {
     setItems(items.map((item, idx) => idx === i ? { ...item, [field]: value } : item))
 
   const subtotal = items.reduce((s, it) => s + it.quantity * it.unit_price, 0)
-  const tax = subtotal * 0.18
+  const tax = subtotal * tvaRate(defaultTva)
   const total = subtotal + tax
 
   const fmtNum = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n)
@@ -89,31 +105,34 @@ export default function NewInvoicePage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.client_id) { setError('Veuillez sélectionner un client.'); return }
-    if (form.status === 'paid' && total === 0) { setError('Le montant doit être supérieur à 0 pour une facture payée.'); return }
+    if (items.some(it => !it.description.trim())) { setError('Chaque ligne doit avoir une description.'); return }
     setLoading(true)
     setError(null)
-    const supabase = await getAuthenticatedClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setError('Vous devez être connecté pour créer une facture.')
+
+    const res = await fetch('/api/invoices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: form.client_id,
+        currency: form.currency,
+        due_date: form.due_date || undefined,
+        status: form.status,
+        notes: form.notes || undefined,
+        items: items.map(it => ({
+          description: it.description,
+          quantity: it.quantity,
+          unit_price: it.unit_price,
+        })),
+      }),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      setError(body.error || 'Erreur lors de la création de la facture.')
       setLoading(false)
       return
     }
 
-    const { error: err } = await supabase.from('invoices').insert({
-      user_id: user?.id,
-      client_id: form.client_id,
-      invoice_number: form.invoice_number,
-      currency: form.currency,
-      due_date: form.due_date || null,
-      status: form.status,
-      total: total,
-      subtotal: subtotal,
-      tax: tax,
-      issue_date: new Date().toISOString().split('T')[0],
-      notes: form.notes || null,
-    })
-    if (err) { setError(err.message); setLoading(false); return }
     router.push('/dashboard/invoices')
   }
 
@@ -142,23 +161,14 @@ export default function NewInvoicePage() {
             </div>
 
             <div>
-              <label style={labelStyle}>N° Facture <span style={{ color: '#DC2626' }}>*</span></label>
-              <input value={form.invoice_number} onChange={e => setForm({ ...form, invoice_number: e.target.value })} required style={inputStyle}
-                onFocus={e => e.currentTarget.style.borderColor = accent} onBlur={e => e.currentTarget.style.borderColor = border} />
-            </div>
-
-            <div>
               <label style={labelStyle}>Statut</label>
               <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} style={{ ...inputStyle, cursor: 'pointer' }}>
-                <option value="draft">Brouillon</option>
-                <option value="pending">En attente</option>
-                <option value="paid">Payée</option>
-                <option value="overdue">En retard</option>
+                {Object.entries(INVOICE_STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
 
             <div>
-              <label style={labelStyle}>Date d'échéance</label>
+              <label style={labelStyle}>Date d&apos;échéance</label>
               <input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} style={inputStyle}
                 onFocus={e => e.currentTarget.style.borderColor = accent} onBlur={e => e.currentTarget.style.borderColor = border} />
             </div>
@@ -223,7 +233,7 @@ export default function NewInvoicePage() {
               <span style={{ fontWeight: 600, color: text }}>{fmtNum(subtotal)} {form.currency}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: isDark ? '#CBD5E1' : '#64748B' }}>
-              <span>TVA (18%)</span>
+              <span>TVA ({Math.round(tvaRate(defaultTva) * 100)}%)</span>
               <span style={{ fontWeight: 600, color: text }}>{fmtNum(tax)} {form.currency}</span>
             </div>
             <div style={{ height: 1, background: isDark ? '#334155' : '#E2E8F0' }} />

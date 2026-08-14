@@ -15,19 +15,13 @@ interface DashboardThemeContextValue {
 const DashboardThemeContext = createContext<DashboardThemeContextValue | undefined>(undefined)
 
 export function DashboardThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>('light')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-
-  useEffect(() => {
+  const [theme, setThemeState] = useState<ThemeMode>(() => {
+    if (typeof window === 'undefined') return 'light'
     const storedTheme = window.localStorage.getItem('invoiceflow-theme') as ThemeMode | null
-    if (storedTheme === 'light' || storedTheme === 'dark') {
-      setThemeState(storedTheme)
-      return
-    }
-
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    setThemeState(prefersDark ? 'dark' : 'light')
-  }, [])
+    if (storedTheme === 'light' || storedTheme === 'dark') return storedTheme
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme

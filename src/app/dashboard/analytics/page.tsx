@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { createClient } from '@/lib/supabase/client'
 import { useDashboardTheme } from '@/app/dashboard/theme-context'
 
 const fmtXof = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n || 0) + ' XOF'
@@ -22,12 +21,12 @@ interface ClientRecord {
   name: string
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string | number }) {
   if (!active || !payload?.length) return null
   return (
     <div style={{ background: '#111827', borderRadius: 10, padding: '10px 14px', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 700 }}>{fmtXof(payload[0].value)}</div>
+      <div style={{ fontSize: 14, fontWeight: 700 }}>{fmtXof(payload[0]?.value ?? 0)}</div>
     </div>
   )
 }
@@ -36,31 +35,30 @@ export default function AnalyticsPage() {
   const { theme } = useDashboardTheme()
   const isDark = theme === 'dark'
   const surface = isDark ? '#111827' : '#fff'
-  const surfaceSoft = isDark ? '#1F2937' : '#F8FAFC'
   const border = isDark ? '#334155' : '#E2E8F0'
   const text = isDark ? '#F8FAFC' : '#0F172A'
   const muted = isDark ? '#94A3B8' : '#64748B'
 
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([])
   const [clients, setClients] = useState<ClientRecord[]>([])
-  const [loading, setLoading] = useState(true)
+  const [, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      const [resInv, resCli] = await Promise.all([
+        fetch('/api/invoices'),
+        fetch('/api/clients'),
+      ])
+
+      if (!resInv.ok || !resCli.ok) {
         setLoading(false)
         return
       }
 
-      const [{ data: inv }, { data: cli }] = await Promise.all([
-        supabase.from('invoices').select('id,total,status,issue_date,due_date,paid_at,currency').eq('user_id', user.id).order('issue_date', { ascending: false }),
-        supabase.from('clients').select('id,name').eq('user_id', user.id).order('name'),
-      ])
-
-      setInvoices((inv || []) as InvoiceRecord[])
-      setClients((cli || []) as ClientRecord[])
+      const inv: InvoiceRecord[] = await resInv.json()
+      const cli: ClientRecord[] = await resCli.json()
+      setInvoices(inv || [])
+      setClients(cli || [])
       setLoading(false)
     }
 
@@ -73,22 +71,19 @@ export default function AnalyticsPage() {
   const avgInvoice = invoices.length ? invoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0) / invoices.length : 0
   const collectionRate = invoices.length ? Math.round((paidInvoices.length / invoices.length) * 100) : 0
 
-  const trendData = useMemo(() => {
-    const months = Array.from({ length: 6 }, (_, index) => {
-      const d = new Date()
-      d.setMonth(d.getMonth() - (5 - index))
-      d.setDate(1)
-      const label = d.toLocaleDateString('fr-FR', { month: 'short' })
-      const total = paidInvoices.filter(inv => {
-        const paidDate = inv.paid_at || inv.issue_date
-        if (!paidDate) return false
-        const date = new Date(paidDate)
-        return date.getMonth() === d.getMonth() && date.getFullYear() === d.getFullYear()
-      }).reduce((sum, inv) => sum + Number(inv.total || 0), 0)
-      return { label, total }
-    })
-    return months
-  }, [paidInvoices])
+  const trendData = Array.from({ length: 6 }, (_, index) => {
+    const d = new Date()
+    d.setMonth(d.getMonth() - (5 - index))
+    d.setDate(1)
+    const label = d.toLocaleDateString('fr-FR', { month: 'short' })
+    const total = paidInvoices.filter(inv => {
+      const paidDate = inv.paid_at || inv.issue_date
+      if (!paidDate) return false
+      const date = new Date(paidDate)
+      return date.getMonth() === d.getMonth() && date.getFullYear() === d.getFullYear()
+    }).reduce((sum, inv) => sum + Number(inv.total || 0), 0)
+    return { label, total }
+  })
 
   const kpis = [
     { label: 'Revenus collectés', value: fmtXof(totalCollected), hint: 'Sur les factures payées' },

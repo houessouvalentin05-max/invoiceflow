@@ -75,3 +75,26 @@ export async function deleteInvoice(id: string, userId: string) {
     .eq('user_id', userId)
   if (error) throw error
 }
+
+export async function getUserDefaultTva(userId: string) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('default_tva')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) throw error
+  return (data?.default_tva as string | null) ?? null
+}
+
+export async function invoiceNumberExists(number: string, userId: string) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('id')
+    .eq('invoice_number', number)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) throw error
+  return !!data
+}

@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useDashboardTheme } from '@/app/dashboard/theme-context'
 
 const fmtXof = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n || 0) + ' XOF'
@@ -26,11 +25,10 @@ export default function ReportsPage() {
 
   useEffect(() => {
     async function load() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const res = await fetch('/api/invoices')
+      if (!res.ok) return
 
-      const { data: invoices } = await supabase.from('invoices').select('status,total').eq('user_id', user.id)
+      const invoices: { status: string; total: number }[] = await res.json()
       const items = invoices || []
       setSummary({
         totalInvoices: items.length,

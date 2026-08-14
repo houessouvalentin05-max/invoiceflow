@@ -1,8 +1,6 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import { useDashboardTheme } from '@/app/dashboard/theme-context'
 
 const fmtXof = (n: number) =>
@@ -64,6 +62,22 @@ const labelStyle = (muted: string): React.CSSProperties => ({
   display: 'block', fontSize: 13, fontWeight: 600, color: muted, marginBottom: 6
 })
 
+interface PaymentRecord {
+  id: string
+  amount: number
+  method: string
+  reference: string | null
+  paid_at: string | null
+  invoice?: { invoice_number?: string; client?: { name?: string } | null } | null
+}
+interface InvoiceRecord {
+  id: string
+  invoice_number: string
+  total: number
+  status: string
+  client?: { name?: string } | null
+}
+
 export default function PaymentsPage() {
   const { theme } = useDashboardTheme()
   const isDark = theme === 'dark'
@@ -72,10 +86,9 @@ export default function PaymentsPage() {
   const border = isDark ? '#334155' : '#E2E8F0'
   const text = isDark ? '#F8FAFC' : '#0F172A'
   const muted = isDark ? '#94A3B8' : '#64748B'
-  const subtle = isDark ? '#1E293B' : '#F1F5F9'
 
-  const [payments, setPayments] = useState<any[]>([])
-  const [invoices, setInvoices] = useState<any[]>([])
+  const [payments, setPayments] = useState<PaymentRecord[]>([])
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -83,48 +96,74 @@ export default function PaymentsPage() {
   const [form, setForm] = useState({ invoice_id: '', amount: '', method: 'momo', reference: '', paid_at: new Date().toISOString().split('T')[0] })
 
   async function fetchData() {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
+    const [payRes, invRes] = await Promise.all([
+      fetch('/api/payments'),
+      fetch('/api/invoices'),
+    ])
+
+    if (!payRes.ok || !invRes.ok) {
       setLoading(false)
       return
     }
 
-    const [{ data: pay }, { data: inv }] = await Promise.all([
-      supabase.from('payments').select('id,amount,method,reference,paid_at,notes,invoice:invoices(invoice_number,client:clients(name))').eq('user_id', user.id).order('paid_at', { ascending: false }),
-      supabase.from('invoices').select('id,invoice_number,total,status,client:clients(name)').eq('user_id', user.id).order('created_at', { ascending: false }),
-    ])
+    const pay: PaymentRecord[] = await payRes.json()
+    const inv: InvoiceRecord[] = await invRes.json()
     setPayments(pay || [])
     setInvoices(inv || [])
     setLoading(false)
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    let active = true
+
+    async function loadData() {
+      const [payRes, invRes] = await Promise.all([
+        fetch('/api/payments'),
+        fetch('/api/invoices'),
+      ])
+      if (!active) return
+
+      if (!payRes.ok || !invRes.ok) {
+        setLoading(false)
+        return
+      }
+
+      const pay: PaymentRecord[] = await payRes.json()
+      const inv: InvoiceRecord[] = await invRes.json()
+      if (!active) return
+      setPayments(pay || [])
+      setInvoices(inv || [])
+      setLoading(false)
+    }
+
+    void loadData()
+
+    return () => { active = false }
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.invoice_id || !form.amount) { setError('Facture et montant requis.'); return }
     setSaving(true)
     setError(null)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    const { error: err } = await supabase.from('payments').insert({
-      user_id: user?.id,
-      invoice_id: form.invoice_id,
-      amount: Number(form.amount),
-      method: form.method,
-      reference: form.reference || null,
-      paid_at: form.paid_at,
-    })
-    if (err) { setError(err.message); setSaving(false); return }
 
-    // Check if invoice is fully paid → update status
-    const { data: invoicePayments } = await supabase.from('payments').select('amount').eq('invoice_id', form.invoice_id)
-    const totalPaid = (invoicePayments || []).reduce((s, p) => s + Number(p.amount), 0) + Number(form.amount)
-    const invoice = invoices.find(i => i.id === form.invoice_id)
-    if (invoice && totalPaid >= Number(invoice.total)) {
-      await supabase.from('invoices').update({ status: 'paid', paid_at: form.paid_at }).eq('id', form.invoice_id)
+    const res = await fetch('/api/payments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        invoice_id: form.invoice_id,
+        amount: Number(form.amount),
+        method: form.method,
+        reference: form.reference || undefined,
+        paid_at: form.paid_at,
+      }),
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      setError(body.error || 'Erreur lors de l’enregistrement du paiement.')
+      setSaving(false)
+      return
     }
 
     setForm({ invoice_id: '', amount: '', method: 'momo', reference: '', paid_at: new Date().toISOString().split('T')[0] })
@@ -135,7 +174,13 @@ export default function PaymentsPage() {
 
   async function handleDelete(id: string) {
     if (!confirm('Supprimer ce paiement ?')) return
-    await createClient().from('payments').delete().eq('id', id)
+
+    const res = await fetch(`/api/payments/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      setError(body.error || 'Erreur lors de la suppression du paiement.')
+      return
+    }
     setPayments(prev => prev.filter(p => p.id !== id))
   }
 
@@ -264,7 +309,7 @@ export default function PaymentsPage() {
               </tr>
             </thead>
             <tbody>
-              {payments.map((p: any) => (
+              {payments.map((p: PaymentRecord) => (
                 <tr key={p.id} style={{ borderBottom: `1px solid ${border}` }}
                   onMouseEnter={e => e.currentTarget.style.background = surfaceSoft}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
