@@ -90,56 +90,47 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentRecord[]>([])
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({ invoice_id: '', amount: '', method: 'momo', reference: '', paid_at: new Date().toISOString().split('T')[0] })
 
   async function fetchData() {
-    const [payRes, invRes] = await Promise.all([
-      fetch('/api/payments'),
-      fetch('/api/invoices'),
-    ])
+    try {
+      setLoadError(false)
+      const [payRes, invRes] = await Promise.all([
+        fetch('/api/payments'),
+        fetch('/api/invoices'),
+      ])
 
-    if (!payRes.ok || !invRes.ok) {
+      if (!payRes.ok || !invRes.ok) throw new Error('Réponse API invalide')
+
+      const pay: PaymentRecord[] = await payRes.json()
+      const inv: InvoiceRecord[] = await invRes.json()
+      setPayments(pay || [])
+      setInvoices(inv || [])
+    } catch (err) {
+      console.error('Erreur de chargement des paiements :', err)
+      setLoadError(true)
+    } finally {
       setLoading(false)
-      return
     }
-
-    const pay: PaymentRecord[] = await payRes.json()
-    const inv: InvoiceRecord[] = await invRes.json()
-    setPayments(pay || [])
-    setInvoices(inv || [])
-    setLoading(false)
   }
 
   useEffect(() => {
     let active = true
 
     async function loadData() {
-      const [payRes, invRes] = await Promise.all([
-        fetch('/api/payments'),
-        fetch('/api/invoices'),
-      ])
-      if (!active) return
-
-      if (!payRes.ok || !invRes.ok) {
-        setLoading(false)
-        return
-      }
-
-      const pay: PaymentRecord[] = await payRes.json()
-      const inv: InvoiceRecord[] = await invRes.json()
-      if (!active) return
-      setPayments(pay || [])
-      setInvoices(inv || [])
-      setLoading(false)
+      await fetchData()
+      active = false
     }
 
     void loadData()
 
     return () => { active = false }
-  }, [])
+  }, [retryKey])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -287,8 +278,31 @@ export default function PaymentsPage() {
 
       {/* Table */}
       <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, overflow: 'hidden', boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>
-        {loading ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center', color: muted, fontSize: 14 }}>Chargement...</div>
+        {loadError ? (
+          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+            <svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth={1.8} style={{ margin: '0 auto 12px' }}>
+              <circle cx="12" cy="12" r="9" /><path d="M12 8v4M12 16h.01" />
+            </svg>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: text, margin: '0 0 6px' }}>Impossible de charger les paiements</h3>
+            <p style={{ fontSize: 13, color: muted, margin: '0 0 20px' }}>Vérifiez votre connexion internet puis réessayez.</p>
+            <button onClick={() => { setLoading(true); setRetryKey(k => k + 1) }} style={{ height: 38, padding: '0 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Réessayer
+            </button>
+          </div>
+        ) : loading ? (
+          <div style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', gap: 14, marginBottom: 18 }}>
+              {Array.from({ length: 6 }).map((_, i) => <div key={i} style={{ width: 70, height: 10, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9' }} />)}
+            </div>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} style={{ display: 'flex', gap: 20, padding: '16px 8px', borderTop: `1px solid ${isDark ? '#334155' : '#F1F5F9'}` }}>
+                <div style={{ width: 90, height: 12, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9' }} />
+                <div style={{ width: 120, height: 12, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9' }} />
+                <div style={{ width: 70, height: 12, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9' }} />
+                <div style={{ width: 100, height: 12, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9' }} />
+              </div>
+            ))}
+          </div>
         ) : payments.length === 0 ? (
           <div style={{ padding: '56px 24px', textAlign: 'center' }}>
             <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(37,99,235,0.08)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>

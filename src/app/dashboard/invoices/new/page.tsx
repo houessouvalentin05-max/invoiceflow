@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useDashboardTheme } from '@/app/dashboard/theme-context'
 import { tvaRate, INVOICE_STATUS_LABELS } from '@/lib/invoice-meta'
 
@@ -33,6 +34,8 @@ export default function NewInvoicePage() {
   }
 
   const [clients, setClients] = useState<Client[]>([])
+  const [clientsStatus, setClientsStatus] = useState<'loading' | 'success' | 'empty' | 'error'>('loading')
+  const [clientsRetryKey, setClientsRetryKey] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState(() => ({
@@ -52,20 +55,23 @@ export default function NewInvoicePage() {
 
     async function loadClients() {
       try {
+        setClientsStatus('loading')
         const res = await fetch('/api/clients')
 
         if (!active) return
 
         if (!res.ok) {
-          console.error('Erreur chargement clients:', res.status)
-          return
+          throw new Error(`Réponse API invalide (clients: ${res.status})`)
         }
 
         const data = await res.json()
         if (!active) return
-        setClients(data || [])
+        const list = data || []
+        setClients(list)
+        setClientsStatus(list.length === 0 ? 'empty' : 'success')
       } catch (err) {
         console.error('Erreur session clients:', err)
+        if (active) setClientsStatus('error')
       }
     }
 
@@ -89,7 +95,7 @@ export default function NewInvoicePage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [clientsRetryKey])
 
   const addItem = () => setItems([...items, { description: '', quantity: 1, unit_price: 0 }])
   const removeItem = (i: number) => setItems(items.filter((_, idx) => idx !== i))
@@ -155,9 +161,23 @@ export default function NewInvoicePage() {
               <label style={labelStyle}>Client <span style={{ color: '#DC2626' }}>*</span></label>
               <select value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })} required
                 style={{ ...inputStyle, cursor: 'pointer' }}>
-                <option value="">Sélectionner un client</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <option value="">{clientsStatus === 'loading' ? 'Chargement des clients...' : 'Sélectionner un client'}</option>
+                {clientsStatus === 'success' && clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
+              {clientsStatus === 'error' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 13, color: '#DC2626' }}>
+                  <span>Impossible de charger la liste des clients.</span>
+                  <button type="button" onClick={() => setClientsRetryKey(k => k + 1)} style={{ background: 'none', border: 'none', color: '#2563EB', fontWeight: 600, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', textDecoration: 'underline', padding: 0 }}>
+                    Réessayer
+                  </button>
+                </div>
+              )}
+              {clientsStatus === 'empty' && (
+                <p style={{ margin: '8px 0 0', fontSize: 13, color: muted }}>
+                  Aucun client pour l'instant.{' '}
+                  <Link href="/dashboard/clients" style={{ color: '#2563EB', fontWeight: 600, textDecoration: 'none' }}>Créer un client</Link>
+                </p>
+              )}
             </div>
 
             <div>

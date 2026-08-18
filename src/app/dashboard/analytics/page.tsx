@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useDashboardTheme } from '@/app/dashboard/theme-context'
 
@@ -41,29 +42,39 @@ export default function AnalyticsPage() {
 
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([])
   const [clients, setClients] = useState<ClientRecord[]>([])
-  const [, setLoading] = useState(true)
+  const [status, setStatus] = useState<'loading' | 'success' | 'empty' | 'error'>('loading')
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
+    let cancelled = false
     async function load() {
-      const [resInv, resCli] = await Promise.all([
-        fetch('/api/invoices'),
-        fetch('/api/clients'),
-      ])
+      try {
+        setStatus('loading')
+        const [resInv, resCli] = await Promise.all([
+          fetch('/api/invoices'),
+          fetch('/api/clients'),
+        ])
 
-      if (!resInv.ok || !resCli.ok) {
-        setLoading(false)
-        return
+        if (!resInv.ok || !resCli.ok) {
+          throw new Error(`Réponse API invalide (invoices: ${resInv.status}, clients: ${resCli.status})`)
+        }
+
+        const inv: InvoiceRecord[] = await resInv.json()
+        const cli: ClientRecord[] = await resCli.json()
+        if (cancelled) return
+        setInvoices(inv || [])
+        setClients(cli || [])
+        setStatus(inv.length === 0 && cli.length === 0 ? 'empty' : 'success')
+      } catch (err) {
+        if (cancelled) return
+        console.error('Erreur de chargement de l\'analytique :', err)
+        setStatus('error')
       }
-
-      const inv: InvoiceRecord[] = await resInv.json()
-      const cli: ClientRecord[] = await resCli.json()
-      setInvoices(inv || [])
-      setClients(cli || [])
-      setLoading(false)
     }
 
     void load()
-  }, [])
+    return () => { cancelled = true }
+  }, [retryKey])
 
   const paidInvoices = invoices.filter(i => i.status === 'paid')
   const overdueInvoices = invoices.filter(i => i.status === 'overdue')
@@ -92,13 +103,78 @@ export default function AnalyticsPage() {
     { label: 'Taux de collecte', value: `${collectionRate}%`, hint: 'Sur l’ensemble des factures' },
   ]
 
+  const header = (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#2563EB', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Analytique</div>
+      <h1 style={{ fontSize: 28, fontWeight: 800, color: text, letterSpacing: '-0.7px', margin: '0 0 6px' }}>Suivez la santé de votre activité</h1>
+      <p style={{ fontSize: 14, color: muted, margin: 0 }}>Des indicateurs simples pour comprendre votre cash-flow, votre portefeuille clients et vos retards.</p>
+    </div>
+  )
+
+  if (status === 'loading') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {header}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 20 }}>
+              <div style={{ width: 100, height: 10, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9', marginBottom: 16 }} />
+              <div style={{ width: 140, height: 24, borderRadius: 6, background: isDark ? '#1F2937' : '#F1F5F9' }} />
+              <div style={{ width: 80, height: 10, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9', marginTop: 12 }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.65fr 0.95fr', gap: 16 }}>
+          <div style={{ height: 280, background: surface, border: `1px solid ${border}`, borderRadius: 16 }} />
+          <div style={{ height: 280, background: surface, border: `1px solid ${border}`, borderRadius: 16 }} />
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'empty') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {header}
+        <div style={{ textAlign: 'center', padding: '56px 24px' }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(37,99,235,0.08)', display: 'grid', placeItems: 'center', margin: '0 auto 12px' }}>
+            <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 3v18h18" />
+              <path d="M18 17V9M13 17V5M8 17v-3" />
+            </svg>
+          </div>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: text, margin: '0 0 6px' }}>Aucune donnée à analyser</h3>
+          <p style={{ fontSize: 13, color: muted, margin: '0 0 20px' }}>Créez vos premières factures pour voir apparaître vos indicateurs.</p>
+          <Link href="/dashboard/invoices/new" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 16px', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff', borderRadius: 10, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+            + Créer une facture
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'error') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {header}
+        <div style={{ border: '1px solid #FECACA', borderRadius: 12, padding: 28, background: isDark ? '#450A0A' : '#FEF2F2', textAlign: 'center' }}>
+          <svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} style={{ margin: '0 auto 10px', color: '#DC2626' }}>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 8v4M12 16h.01" />
+          </svg>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? '#FCA5A5' : '#991B1B', margin: '0 0 6px' }}>Impossible de charger les statistiques</h3>
+          <p style={{ fontSize: 13, color: isDark ? '#FECACA' : '#B91C1C', margin: '0 0 20px' }}>Vérifiez votre connexion internet puis réessayez.</p>
+          <button onClick={() => setRetryKey(k => k + 1)} style={{ height: 38, padding: '0 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Réessayer
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#2563EB', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Analytique</div>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: text, letterSpacing: '-0.7px', margin: '0 0 6px' }}>Suivez la santé de votre activité</h1>
-        <p style={{ fontSize: 14, color: muted, margin: 0 }}>Des indicateurs simples pour comprendre votre cash-flow, votre portefeuille clients et vos retards.</p>
-      </div>
+      {header}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
         {kpis.map((kpi) => (

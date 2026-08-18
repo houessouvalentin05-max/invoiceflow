@@ -56,23 +56,33 @@ export default function InvoiceDetailPage() {
 
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
   const [savingStatus, setSavingStatus] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     async function loadInvoice() {
       try {
+        setLoading(true)
+        setError(false)
         const res = await fetch(`/api/invoices/${id}`)
+        if (!res.ok) throw new Error(`Réponse API invalide (${res.status})`)
         const data = await res.json()
+        if (cancelled) return
         setInvoice(data)
-      } catch (error) {
-        console.error('Erreur chargement facture:', error)
+      } catch (err) {
+        if (cancelled) return
+        console.error('Erreur chargement facture:', err)
+        setError(true)
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
     loadInvoice()
-  }, [id])
+    return () => { cancelled = true }
+  }, [id, retryKey])
 
   async function handleStatusChange(nextStatus: string) {
     if (!invoice) return
@@ -92,8 +102,58 @@ export default function InvoiceDetailPage() {
     }
   }
 
-  if (loading) return <p style={{ color: muted }}>Chargement...</p>
-  if (!invoice) return <p style={{ color: '#DC2626' }}>Facture introuvable</p>
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 28 }}>
+          <div style={{ width: 120, height: 12, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9', marginBottom: 16 }} />
+          <div style={{ width: 280, height: 28, borderRadius: 6, background: isDark ? '#1F2937' : '#F1F5F9', marginBottom: 20 }} />
+          <div style={{ width: 200, height: 12, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9', marginBottom: 28 }} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i}>
+                <div style={{ width: 100, height: 10, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9', marginBottom: 10 }} />
+                <div style={{ width: 160, height: 14, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9' }} />
+              </div>
+            ))}
+          </div>
+          <div style={{ height: 160, borderRadius: 16, background: isDark ? '#1F2937' : '#F1F5F9' }} />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ border: '1px solid #FECACA', borderRadius: 12, padding: 28, background: isDark ? '#450A0A' : '#FEF2F2', textAlign: 'center' }}>
+          <svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth={1.8} style={{ margin: '0 auto 10px' }}>
+            <circle cx="12" cy="12" r="9" /><path d="M12 8v4M12 16h.01" />
+          </svg>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? '#FCA5A5' : '#991B1B', margin: '0 0 6px' }}>Impossible de charger la facture</h3>
+          <p style={{ fontSize: 13, color: isDark ? '#FECACA' : '#B91C1C', margin: '0 0 20px' }}>Vérifiez votre connexion internet puis réessayez.</p>
+          <button onClick={() => setRetryKey(k => k + 1)} style={{ height: 38, padding: '0 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Réessayer
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!invoice) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'center', padding: '64px 24px', textAlign: 'center' }}>
+        <svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 12px' }}>
+          <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M9 4v4M15 4v4" />
+        </svg>
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: text, margin: '0 0 6px' }}>Facture introuvable</h3>
+        <p style={{ fontSize: 14, color: muted, margin: '0 0 20px' }}>Cette facture n'existe pas ou a été supprimée.</p>
+        <button onClick={() => router.push('/dashboard/invoices')} style={{ height: 38, padding: '0 16px', borderRadius: 10, border: `1px solid ${border}`, background: surface, color: text, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          ← Retour aux factures
+        </button>
+      </div>
+    )
+  }
 
   const pdfData = {
     id: invoice.id,
