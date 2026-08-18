@@ -21,9 +21,47 @@ const labelStyle: React.CSSProperties = {
 const COLORS = ['#2563EB','#7C3AED','#10B981','#F59E0B','#EF4444','#06B6D4','#8B5CF6','#EC4899']
 const getColor = (name: string) => COLORS[name.charCodeAt(0) % COLORS.length]
 
+type PageStatus = 'loading' | 'success' | 'empty' | 'error'
+
+const SkeletonCard = () => (
+  <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: 20, animation: 'pulse 1.2s ease-in-out infinite' }}>
+    <div style={{ width: 48, height: 48, borderRadius: 14, background: '#F1F5F9', marginBottom: 14 }} />
+    <div style={{ width: '60%', height: 14, borderRadius: 6, background: '#F1F5F9', marginBottom: 8 }} />
+    <div style={{ width: '80%', height: 12, borderRadius: 6, background: '#F1F5F9', marginBottom: 8 }} />
+    <div style={{ width: '40%', height: 12, borderRadius: 6, background: '#F1F5F9' }} />
+  </div>
+)
+
+const EmptyState = ({ message, cta }: { message: string; cta?: React.ReactNode }) => (
+  <div style={{ textAlign: 'center', padding: '48px 20px' }}>
+    <svg width={56} height={56} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} style={{ margin: '0 auto 12px', color: '#94A3B8' }}>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+    <h3 style={{ margin: '8px 0', fontSize: 16, fontWeight: 700, color: '#475569' }}>{message}</h3>
+    {cta && <div style={{ marginTop: 16 }}>{cta}</div>}
+  </div>
+)
+
+const ErrorState = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
+  <div style={{ border: '1px solid #FECACA', borderRadius: 12, padding: 28, background: '#FEE2E2', textAlign: 'center', margin: '24px 0' }}>
+    <svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} style={{ margin: '0 auto 10px', color: '#DC2626' }}>
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+    <p style={{ margin: '8px 0', fontSize: 14, color: '#991B1B' }}>{message}</p>
+    <button onClick={onRetry} style={{ marginTop: 16, padding: '9px 18px', background: '#2563EB', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+      Réessayer
+    </button>
+  </div>
+)
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
-  const [loading, setLoading] = useState(true)
+  const [status, setStatus] = useState<PageStatus>('loading')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [error, setError] = useState<string | null>(null)
@@ -32,24 +70,37 @@ export default function ClientsPage() {
   const [view, setView] = useState<'grid' | 'list'>('grid')
 
   async function fetchClients() {
-    const res = await fetch('/api/clients')
-    if (!res.ok) { setLoading(false); return }
-    const data = await res.json()
-    setClients(data || [])
-    setLoading(false)
+    try {
+      const res = await fetch('/api/clients')
+      if (!res.ok) throw new Error('Erreur serveur')
+      const data = await res.json()
+      setClients(data || [])
+      setStatus(data && data.length > 0 ? 'success' : 'empty')
+    } catch (err) {
+      console.error('Erreur chargement clients:', err)
+      setError('Impossible de charger les clients.')
+      setStatus('error')
+    }
   }
 
   useEffect(() => {
     let active = true
 
     async function loadClients() {
-      const res = await fetch('/api/clients')
-      if (!active) return
-      if (!res.ok) { setLoading(false); return }
-      const data = await res.json()
-      if (!active) return
-      setClients(data || [])
-      setLoading(false)
+      try {
+        const res = await fetch('/api/clients')
+        if (!active) return
+        if (!res.ok) throw new Error('Erreur serveur')
+        const data = await res.json()
+        if (!active) return
+        setClients(data || [])
+        setStatus(data && data.length > 0 ? 'success' : 'empty')
+      } catch (err) {
+        if (!active) return
+        console.error('Erreur chargement clients:', err)
+        setError('Impossible de charger les clients.')
+        setStatus('error')
+      }
     }
 
     void loadClients()
@@ -101,6 +152,70 @@ export default function ClientsPage() {
       c.email?.toLowerCase().includes(search.toLowerCase()) ||
       c.company?.toLowerCase().includes(search.toLowerCase())
     ), [clients, search])
+
+  if (status === 'loading') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.7px', margin: '0 0 4px' }}>Clients</h1>
+          <p style={{ fontSize: 14, color: '#64748B', margin: 0 }}>Chargement des clients...</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'empty') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.7px', margin: '0 0 4px' }}>Clients</h1>
+          <p style={{ fontSize: 14, color: '#64748B', margin: 0 }}>Aucun client pour l'instant</p>
+        </div>
+        <EmptyState
+          message="Aucun client pour l'instant"
+          cta={<button
+            onClick={() => setShowForm(true)}
+            style={{
+              height: 40,
+              padding: '0 18px',
+              borderRadius: 10,
+              background: 'linear-gradient(135deg,#2563EB,#7C3AED)',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              boxShadow: '0 4px 14px -4px rgba(79,70,229,0.5)',
+            }}
+          >
+            + Créer votre premier client
+          </button>}
+        />
+      </div>
+    )
+  }
+
+  if (status === 'error') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.7px', margin: '0 0 4px' }}>Clients</h1>
+        </div>
+        <ErrorState
+          message={error || 'Une erreur inattendue est survenue lors du chargement des clients.'}
+          onRetry={() => {
+            setStatus('loading')
+            fetchClients()
+          }}
+        />
+      </div>
+    )
+  }
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -214,9 +329,7 @@ export default function ClientsPage() {
       </div>
 
       {/* Content */}
-      {loading ? (
-        <div style={{ padding: '48px 24px', textAlign: 'center', color: '#64748B', fontSize: 14 }}>Chargement...</div>
-      ) : filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: '56px 24px', textAlign: 'center', boxShadow: '0 10px 30px -18px rgba(15, 23, 42, 0.2)' }}>
           <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(37,99,235,0.08)', display: 'grid', placeItems: 'center', margin: '0 auto 16px' }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 26, height: 26 }}>
