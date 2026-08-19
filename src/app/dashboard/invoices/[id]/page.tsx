@@ -247,7 +247,7 @@ export default function InvoiceDetailPage() {
 
         <div style={{ maxWidth: 320, marginLeft: 'auto', marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'right' }}>
           <p style={{ margin: 0, fontSize: 14, color: muted }}>Sous-total : <span style={{ fontWeight: 700, color: text }}>{invoice.subtotal.toLocaleString()} {invoice.currency}</span></p>
-          <p style={{ margin: 0, fontSize: 14, color: muted }}>TVA (18%) : <span style={{ fontWeight: 700, color: text }}>{invoice.tax.toLocaleString()} {invoice.currency}</span></p>
+          <p style={{ margin: 0, fontSize: 14, color: muted }}>TVA ({invoice.subtotal > 0 ? Math.round((invoice.tax / invoice.subtotal) * 100) : 0}%) : <span style={{ fontWeight: 700, color: text }}>{invoice.tax.toLocaleString()} {invoice.currency}</span></p>
           <p style={{ margin: '4px 0 0', fontSize: 24, fontWeight: 800, color: text }}>Total : {invoice.total.toLocaleString()} {invoice.currency}</p>
         </div>
       </div>
