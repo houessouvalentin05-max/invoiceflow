@@ -172,7 +172,7 @@ export default function ClientsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.7px', margin: '0 0 4px' }}>Clients</h1>
-          <p style={{ fontSize: 14, color: '#64748B', margin: 0 }}>Aucun client pour l'instant</p>
+          <p style={{ fontSize: 14, color: '#64748B', margin: 0 }}>Aucun client pour l&apos;instant</p>
         </div>
         <EmptyState
           message="Aucun client pour l'instant"

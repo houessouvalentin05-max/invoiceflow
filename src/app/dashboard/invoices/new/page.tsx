@@ -174,7 +174,7 @@ export default function NewInvoicePage() {
               )}
               {clientsStatus === 'empty' && (
                 <p style={{ margin: '8px 0 0', fontSize: 13, color: muted }}>
-                  Aucun client pour l'instant.{' '}
+                  Aucun client pour l&apos;instant.{' '}
                   <Link href="/dashboard/clients" style={{ color: '#2563EB', fontWeight: 600, textDecoration: 'none' }}>Créer un client</Link>
                 </p>
               )}

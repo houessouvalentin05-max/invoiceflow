@@ -147,7 +147,7 @@ export default function InvoiceDetailPage() {
           <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M9 4v4M15 4v4" />
         </svg>
         <h3 style={{ fontSize: 16, fontWeight: 700, color: text, margin: '0 0 6px' }}>Facture introuvable</h3>
-        <p style={{ fontSize: 14, color: muted, margin: '0 0 20px' }}>Cette facture n'existe pas ou a été supprimée.</p>
+        <p style={{ fontSize: 14, color: muted, margin: '0 0 20px' }}>Cette facture n&apos;existe pas ou a été supprimée.</p>
         <button onClick={() => router.push('/dashboard/invoices')} style={{ height: 38, padding: '0 16px', borderRadius: 10, border: `1px solid ${border}`, background: surface, color: text, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
           ← Retour aux factures
         </button>

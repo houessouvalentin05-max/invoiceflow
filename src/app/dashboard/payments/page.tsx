@@ -120,16 +120,16 @@ export default function PaymentsPage() {
   }
 
   useEffect(() => {
-    let active = true
+    let cancelled = false
 
     async function loadData() {
       await fetchData()
-      active = false
+      if (cancelled) return
     }
 
     void loadData()
 
-    return () => { active = false }
+    return () => { cancelled = true }
   }, [retryKey])
 
   async function handleSubmit(e: React.FormEvent) {

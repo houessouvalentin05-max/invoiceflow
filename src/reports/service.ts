@@ -1,9 +1,15 @@
 // Reports service for invoiceflow - Phase 3
-import { INVOICE_STATUSES, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS, DEFAULT_TVA_RATE, tvaRate, generateInvoiceNumber } from '@/lib/invoice-meta'
-import { Invoice, InvoiceItem } from '@/features/invoices/types'
+import { INVOICE_STATUSES, generateInvoiceNumber } from '@/lib/invoice-meta'
+
+interface CompanyOverride {
+  name?: string
+  address?: string
+  phone?: string
+  email?: string
+}
 
 // --- Rapport détail facture ---
-export async function generateInvoiceDetailReport(invoiceId: string, overrides?: { company?: any; terms?: string }) {
+export async function generateInvoiceDetailReport(invoiceId: string, overrides?: { company?: CompanyOverride; terms?: string }) {
   // TODO: Implémentation complète avec Supabase
   return {
     id: `report-${invoiceId}-${Date.now()}`,
@@ -95,7 +101,7 @@ export async function generateRevenueAnalysisReport(filters: { period?: 'month' 
 }
 
 // --- État de compte client ---
-export async function generateClientStatementReport(clientId: string, overrides?: { company?: any }) {
+export async function generateClientStatementReport(clientId: string) {
   // TODO: Implémentation complète avec Supabase
   return {
     id: `statement-${clientId}-${Date.now()}`,

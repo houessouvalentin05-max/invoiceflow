@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
-import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS, type InvoiceStatus } from '@/lib/invoice-meta'
+import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from '@/lib/invoice-meta'
 
 const fmtXof = (n: number) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n || 0) + ' XOF'
@@ -66,8 +66,8 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([])
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all')
-  const [filterMonth, setFilterMonth] = useState('all')
+  const filterStatus = 'all'
+  const filterMonth = 'all'
 
   useEffect(() => {
     async function loadInvoices() {
