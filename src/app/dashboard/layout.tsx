@@ -126,7 +126,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column'}}>
-        <header style={{height:60,background: isDark ? '#020617' : '#fff',borderBottom:`1px solid ${palette.border}`,position:'sticky',top:0,zIndex:5,display:'flex',alignItems:'center',padding:'0 24px',gap:16}}>
+        <header style={{height:60,background:'var(--card)',borderBottom:`1px solid ${palette.border}`,position:'sticky',top:0,zIndex:5,display:'flex',alignItems:'center',padding:'0 24px',gap:16}}>
           <button onClick={toggleSidebar} style={{width:36,height:36,borderRadius:10,border:`1px solid ${palette.border}`,background:isDark ? '#0F172A' : '#fff',color:palette.text,display:'grid',placeItems:'center',cursor:'pointer'}} title={sidebarCollapsed ? 'Agrandir la barre' : 'Réduire la barre'}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:16,height:16}}>
               {sidebarCollapsed ? <><path d="M9 6l6 6-6 6"/><path d="M4 6v12"/></> : <><path d="M15 6l-6 6 6 6"/><path d="M20 6v12"/></>}
@@ -164,7 +164,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main style={{padding:'28px 32px',flex:1,background:palette.bg}}>
+        <main style={{padding:'28px 32px',flex:1,background:'var(--background)'}}>
           {children}
         </main>
       </div>

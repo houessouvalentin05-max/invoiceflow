@@ -46,6 +46,17 @@
 
 /* DARK MODE */
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root.dark,
+.dark {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+
+  --card: #1e293b;
+  --border: #334155;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0f172a;
