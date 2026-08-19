@@ -1,4 +1,5 @@
 import { paymentSchema } from './payment.validator'
+import { shouldMarkInvoiceAsPaid } from './payment.helpers'
 import * as repo from './payment.repository'
 
 export async function listPayments(userId: string) {
@@ -15,7 +16,7 @@ export async function addPayment(userId: string, rawInput: unknown) {
   const invoiceTotal = await repo.getInvoiceTotal(input.invoice_id, userId)
   if (invoiceTotal != null) {
     const totalPaid = await repo.sumInvoicePayments(input.invoice_id, userId)
-    if (totalPaid >= Number(invoiceTotal)) {
+    if (shouldMarkInvoiceAsPaid(totalPaid, Number(invoiceTotal))) {
       await repo.markInvoicePaid(input.invoice_id, userId, paidAt)
     }
   }
