@@ -48,22 +48,27 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-:root.dark,
-.dark {
+/* Thème sombre EXPLICITE (classe .dark posée par React / data-theme) */
+.dark,
+:root[data-theme="dark"] {
   --background: #0f172a;
   --foreground: #f8fafc;
 
   --card: #1e293b;
   --border: #334155;
+  --muted: #94a3b8;
 }
 
+/* Fallback OS : uniquement si AUCUN choix explicite (data-theme absent).
+   Dès que React / le script anti-flash posent data-theme="light", ce bloc ne s'applique plus. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --background: #0f172a;
     --foreground: #f8fafc;
 
     --card: #1e293b;
     --border: #334155;
+    --muted: #94a3b8;
   }
 }
 
@@ -93,8 +98,8 @@ body {
 input,
 select,
 textarea {
-  color: #111827 !important;
-  background: #ffffff !important;
+  color: var(--foreground);
+  background: var(--card);
 
   border: 1px solid var(--border);
   border-radius: 12px;

@@ -23,10 +23,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Anti-flash du thème : applique .dark AVANT le premier paint SSR/client. */}
+        {/* Anti-flash du thème : pose data-theme + classe .dark AVANT le premier paint SSR/client.
+            Aucun thème stocké → on suit la préférence système, puis on écrit le choix explicite. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('invoiceflow-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('invoiceflow-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}var r=document.documentElement;r.setAttribute('data-theme',t);if(t==='dark'){r.classList.add('dark');}else{r.classList.remove('dark');}}catch(e){}})();`,
           }}
         />
       </head>
