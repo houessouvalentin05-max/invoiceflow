@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useDashboardTheme } from '@/app/dashboard/theme-context'
+import { useIsMobile } from '@/lib/use-viewport'
 
 const fmtXof = (n: number) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n || 0) + ' XOF'
@@ -86,6 +87,7 @@ export default function PaymentsPage() {
   const border = isDark ? '#334155' : '#E2E8F0'
   const text = isDark ? '#F8FAFC' : '#0F172A'
   const muted = isDark ? '#94A3B8' : '#64748B'
+  const isMobile = useIsMobile()
 
   const [payments, setPayments] = useState<PaymentRecord[]>([])
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([])
@@ -228,7 +230,7 @@ export default function PaymentsPage() {
         <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 24, boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: text, margin: '0 0 20px' }}>Enregistrer un paiement</h2>
           <form onSubmit={handleSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
               <div>
                 <label style={labelStyle(muted)}>Facture <span style={{ color: '#DC2626' }}>*</span></label>
                 <select value={form.invoice_id} onChange={e => setForm({ ...form, invoice_id: e.target.value })} required style={{ ...inputStyle(isDark, border, text, surfaceSoft), cursor: 'pointer' }}>
@@ -277,7 +279,7 @@ export default function PaymentsPage() {
       )}
 
       {/* Table */}
-      <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, overflow: 'hidden', boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>
+      <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, overflowX: 'auto', boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>
         {loadError ? (
           <div style={{ padding: '48px 24px', textAlign: 'center' }}>
             <svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth={1.8} style={{ margin: '0 auto 12px' }}>
@@ -314,7 +316,7 @@ export default function PaymentsPage() {
             <p style={{ fontSize: 13, color: muted, margin: 0 }}>Enregistrez votre premier paiement reçu.</p>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 {['Facture', 'Client', 'Montant', 'Méthode', 'Référence', 'Date', ''].map(h => (

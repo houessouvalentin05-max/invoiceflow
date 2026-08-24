@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useDashboardTheme } from '@/app/dashboard/theme-context'
+import { useIsMobile } from '@/lib/use-viewport'
 
 const fmtXof = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n || 0) + ' XOF'
 
@@ -39,6 +40,7 @@ export default function AnalyticsPage() {
   const border = isDark ? '#334155' : '#E2E8F0'
   const text = isDark ? '#F8FAFC' : '#0F172A'
   const muted = isDark ? '#94A3B8' : '#64748B'
+  const isMobile = useIsMobile()
 
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([])
   const [clients, setClients] = useState<ClientRecord[]>([])
@@ -124,7 +126,7 @@ export default function AnalyticsPage() {
             </div>
           ))}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1.65fr 0.95fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.65fr 0.95fr', gap: 16 }}>
           <div style={{ height: 280, background: surface, border: `1px solid ${border}`, borderRadius: 16 }} />
           <div style={{ height: 280, background: surface, border: `1px solid ${border}`, borderRadius: 16 }} />
         </div>
@@ -186,7 +188,7 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.65fr 0.95fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.65fr 0.95fr', gap: 16 }}>
         <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 20, boxShadow: isDark ? '0 10px 24px -18px rgba(2,6,23,0.65)' : '0 10px 24px -18px rgba(15,23,42,0.2)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: text, margin: 0 }}>Évolution des encaissements</h2>

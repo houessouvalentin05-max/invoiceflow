@@ -5,6 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardThemeProvider, useDashboardTheme } from "./theme-context";
+import { useIsMobile } from "@/lib/use-viewport";
+import { NotificationsProvider } from "@/features/notifications/notifications-context";
+import { NotificationBell } from "@/components/ui/NotificationBell";
 
 const NAV_MAIN = [
   { label: "Dashboard", href: "/dashboard", icon: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></> },
@@ -33,6 +36,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const { theme, toggleTheme, sidebarCollapsed, toggleSidebar } = useDashboardTheme();
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const showLabels = isMobile || !sidebarCollapsed;
   const isDark = theme === 'dark';
   const palette = {
     bg: isDark ? '#020617' : '#F8FAFC',
@@ -58,8 +64,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     href === '/dashboard' ? pathname === href : pathname === href || pathname.startsWith(href + '/');
 
   const navItemStyle = (href: string): React.CSSProperties => ({
-    display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-    gap: sidebarCollapsed ? 0 : 11, padding: sidebarCollapsed ? '10px' : '10px 12px',
+    display: 'flex', alignItems: 'center', justifyContent: showLabels ? 'flex-start' : 'center',
+    gap: showLabels ? 11 : 0, padding: showLabels ? '10px 12px' : '10px',
     borderRadius: 12, fontSize: 13.5, fontWeight: 600, textDecoration: 'none',
     margin: '2px 0', borderLeft: '3px solid transparent', transition: 'all 0.2s ease',
     whiteSpace: 'nowrap', overflow: 'hidden', position: 'relative',
@@ -73,14 +79,27 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{minHeight:'100vh',display:'flex',background:palette.bg,fontFamily:'Inter,system-ui,sans-serif',color:palette.text}}>
-      <aside style={{width: sidebarCollapsed ? 84 : 248, background: isDark ? '#020617' : '#111827', color:'#fff', display:'flex', flexDirection:'column', position:'sticky', top:0, height:'100vh', flexShrink:0, transition:'width 0.2s ease'}}>
-        <div style={{height:64,display:'flex',alignItems:'center',justifyContent: sidebarCollapsed ? 'center' : 'flex-start',gap:11,padding: sidebarCollapsed ? '0 10px' : '0 18px',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          role="presentation"
+          style={{position:'fixed',inset:0,zIndex:39,background:'rgba(2,6,23,0.5)',backdropFilter:'blur(3px)',WebkitBackdropFilter:'blur(3px)'}}
+        />
+      )}
+      <aside style={{
+        background: isDark ? '#020617' : '#111827',
+        color:'#fff', display:'flex', flexDirection:'column',
+        ...(isMobile
+          ? { width:248, position:'fixed', left:0, top:0, bottom:0, zIndex:40, transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)', transition:'transform 0.25s ease', boxShadow: sidebarOpen ? '0 24px 60px -24px rgba(2,6,23,0.75)' : 'none' }
+          : { width: sidebarCollapsed ? 84 : 248, position:'sticky', top:0, height:'100vh', flexShrink:0, transition:'width 0.2s ease' }),
+      }}>
+        <div style={{height:64,display:'flex',alignItems:'center',justifyContent: showLabels ? 'flex-start' : 'center',gap:11,padding: showLabels ? '0 18px' : '0 10px',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
           <div style={{width:34,height:34,borderRadius:10,background:'linear-gradient(135deg,#2563EB,#7C3AED)',display:'grid',placeItems:'center',flexShrink:0}}>
             <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{width:18,height:18}}>
               <path d="M6 5v14"/><path d="M11 19V5h7"/><path d="M11 12h5"/>
             </svg>
           </div>
-          {!sidebarCollapsed && (
+          {showLabels && (
             <span style={{fontWeight:800,fontSize:16,letterSpacing:'-0.35px'}}>
               Invoice<span style={{background:'linear-gradient(90deg,#60A5FA,#A78BFA)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Flow</span>
             </span>
@@ -88,14 +107,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         </div>
 
         <div style={{flex:1,overflowY:'auto',padding:'10px 12px'}}>
-          <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'1.5px',padding:'14px 10px 8px',textTransform:'uppercase'}}>{sidebarCollapsed ? '' : 'Principal'}</div>
+          <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'1.5px',padding:'14px 10px 8px',textTransform:'uppercase'}}>{showLabels ? 'Principal' : ''}</div>
           {NAV_MAIN.map(n => (
             <Link key={n.href} href={n.href} style={navItemStyle(n.href)} title={sidebarCollapsed ? n.label : undefined}>
               <Icon>{n.icon}</Icon>
               {!sidebarCollapsed && n.label}
             </Link>
           ))}
-          <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'1.5px',padding:'14px 10px 8px',textTransform:'uppercase'}}>{sidebarCollapsed ? '' : 'Outils'}</div>
+          <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'1.5px',padding:'14px 10px 8px',textTransform:'uppercase'}}>{showLabels ? 'Outils' : ''}</div>
           {NAV_TOOLS.map(n => (
             <Link key={n.href} href={n.href} style={navItemStyle(n.href)} title={sidebarCollapsed ? n.label : undefined}>
               <Icon>{n.icon}</Icon>
@@ -105,11 +124,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         </div>
 
         <div style={{padding:12,borderTop:'1px solid rgba(255,255,255,0.06)'}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent: sidebarCollapsed ? 'center' : 'flex-start',gap:10,padding:8,borderRadius:9}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent: showLabels ? 'flex-start' : 'center',gap:10,padding:8,borderRadius:9}}>
             <div style={{width:34,height:34,borderRadius:'50%',background:'linear-gradient(135deg,#2563EB,#7C3AED)',color:'#fff',fontWeight:700,fontSize:12.5,display:'grid',placeItems:'center',flexShrink:0}}>
               {initials}
             </div>
-            {!sidebarCollapsed && (
+            {showLabels && (
               <div style={{minWidth:0,flex:1}}>
                 <div style={{fontSize:12,color:'#fff',fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{email || '...'}</div>
               </div>
@@ -126,16 +145,22 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column'}}>
-        <header style={{height:60,background:'var(--card)',borderBottom:`1px solid ${palette.border}`,position:'sticky',top:0,zIndex:5,display:'flex',alignItems:'center',padding:'0 24px',gap:16}}>
-          <button onClick={toggleSidebar} style={{width:36,height:36,borderRadius:10,border:`1px solid ${palette.border}`,background:isDark ? '#0F172A' : '#fff',color:palette.text,display:'grid',placeItems:'center',cursor:'pointer'}} title={sidebarCollapsed ? 'Agrandir la barre' : 'Réduire la barre'}>
+        <header style={{height:60,background:'var(--card)',borderBottom:`1px solid ${palette.border}`,position:'sticky',top:0,zIndex:5,display:'flex',alignItems:'center',padding: isMobile ? '0 16px' : '0 24px',gap: isMobile ? 10 : 16}}>
+          <button
+            onClick={() => (isMobile ? setSidebarOpen(o => !o) : toggleSidebar())}
+            style={{width:36,height:36,borderRadius:10,border:`1px solid ${palette.border}`,background:isDark ? '#0F172A' : '#fff',color:palette.text,display:'grid',placeItems:'center',cursor:'pointer'}}
+            title={isMobile ? 'Ouvrir le menu' : (sidebarCollapsed ? 'Agrandir la barre' : 'Réduire la barre')}
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:16,height:16}}>
-              {sidebarCollapsed ? <><path d="M9 6l6 6-6 6"/><path d="M4 6v12"/></> : <><path d="M15 6l-6 6 6 6"/><path d="M20 6v12"/></>}
+              {isMobile
+                ? (sidebarOpen ? <><path d="M15 6l-6 6 6 6"/><path d="M20 6v12"/></> : <><path d="M3 6h18M3 12h18M3 18h18"/></>)
+                : (sidebarCollapsed ? <><path d="M9 6l6 6-6 6"/><path d="M4 6v12"/></> : <><path d="M15 6l-6 6 6 6"/><path d="M20 6v12"/></>)}
             </svg>
           </button>
           <h1 style={{fontSize:16,fontWeight:700,color:palette.text,letterSpacing:'-0.3px',margin:0,flex:1}}>
             {NAV_MAIN.concat(NAV_TOOLS).find(n => isActive(n.href))?.label || 'Dashboard'}
           </h1>
-          <div style={{position:'relative',flex:'0 1 280px', display: sidebarCollapsed ? 'none' : 'block'}}>
+          <div style={{position:'relative',flex:'0 1 280px', display: sidebarCollapsed || isMobile ? 'none' : 'block'}}>
             <svg viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',width:14,height:14}}>
               <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
             </svg>
@@ -152,19 +177,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </svg>
             )}
           </button>
-          <button style={{width:36,height:36,borderRadius:10,border:`1px solid ${palette.border}`,background:isDark ? '#0F172A' : '#fff',color:palette.text,display:'grid',placeItems:'center',cursor:'pointer',position:'relative'}}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{width:16,height:16}}>
-              <path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.7 21a2 2 0 01-3.4 0"/>
-            </svg>
-            <span style={{position:'absolute',top:8,right:9,width:6,height:6,borderRadius:'50%',background:'#7C3AED',border:'1.5px solid #fff'}}/>
-          </button>
+          <NotificationBell />
           <div style={{width:34,height:34,borderRadius:'50%',background:'linear-gradient(135deg,#2563EB,#7C3AED)',color:'#fff',fontWeight:700,fontSize:12.5,display:'grid',placeItems:'center'}}>
             {initials}
           </div>
         </header>
 
-        <main style={{padding:'28px 32px',flex:1,background:'var(--background)'}}>
+        <main style={{padding: isMobile ? '20px 16px' : '28px 32px',flex:1,background:'var(--background)'}}>
           {children}
         </main>
       </div>
@@ -175,7 +194,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <DashboardThemeProvider>
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      <NotificationsProvider>
+        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      </NotificationsProvider>
     </DashboardThemeProvider>
   );
 }

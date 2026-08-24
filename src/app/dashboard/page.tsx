@@ -384,7 +384,8 @@ export default function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{width:'100%',minWidth:720,borderCollapse:'collapse'}}>
             <thead>
               <tr>
                 {['N° Facture','Client','Montant','Statut','Date','Actions'].map(h => (
@@ -422,6 +423,7 @@ export default function DashboardPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

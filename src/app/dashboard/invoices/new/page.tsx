@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useDashboardTheme } from '@/app/dashboard/theme-context'
+import { useIsMobile } from '@/lib/use-viewport'
 import { tvaRate, INVOICE_STATUS_LABELS } from '@/lib/invoice-meta'
 
 interface Client { id: string; name: string }
@@ -19,6 +20,7 @@ export default function NewInvoicePage() {
   const text = isDark ? '#F8FAFC' : '#0F172A'
   const muted = isDark ? '#94A3B8' : '#64748B'
   const accent = '#2563EB'
+  const isMobile = useIsMobile()
 
   const inputStyle: React.CSSProperties = {
     width: '100%', height: 42, border: `1px solid ${border}`, borderRadius: 10,
@@ -156,7 +158,7 @@ export default function NewInvoicePage() {
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div style={sectionStyle}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: text, margin: '0 0 20px' }}>Informations générales</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
             <div>
               <label style={labelStyle}>Client <span style={{ color: '#DC2626' }}>*</span></label>
               <select value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })} required

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { PDFDownloadButton } from '@/features/invoices/components/PDFDownloadButton'
 import { useDashboardTheme } from '@/app/dashboard/theme-context'
+import { useIsMobile } from '@/lib/use-viewport'
 
 interface InvoiceItem {
   id: string
@@ -53,6 +54,7 @@ export default function InvoiceDetailPage() {
   const border = isDark ? '#334155' : '#E2E8F0'
   const text = isDark ? '#F8FAFC' : '#111827'
   const muted = isDark ? '#94A3B8' : '#64748B'
+  const isMobile = useIsMobile()
 
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [loading, setLoading] = useState(true)
@@ -109,7 +111,7 @@ export default function InvoiceDetailPage() {
           <div style={{ width: 120, height: 12, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9', marginBottom: 16 }} />
           <div style={{ width: 280, height: 28, borderRadius: 6, background: isDark ? '#1F2937' : '#F1F5F9', marginBottom: 20 }} />
           <div style={{ width: 200, height: 12, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9', marginBottom: 28 }} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 24 }}>
             {Array.from({ length: 2 }).map((_, i) => (
               <div key={i}>
                 <div style={{ width: 100, height: 10, borderRadius: 4, background: isDark ? '#1F2937' : '#F1F5F9', marginBottom: 10 }} />
@@ -157,6 +159,7 @@ export default function InvoiceDetailPage() {
 
   const pdfData = {
     id: invoice.id,
+    invoiceNumber: invoice.invoice_number,
     clientName: invoice.client?.name || 'Client inconnu',
     date: new Date(invoice.created_at).toLocaleDateString('fr-FR'),
     dueDate: invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('fr-FR') : '—',
@@ -210,7 +213,7 @@ export default function InvoiceDetailPage() {
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, paddingTop: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 24, paddingTop: 20 }}>
           <div>
             <h2 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: text }}>Client</h2>
             <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 600, color: text }}>{invoice.client?.name || '—'}</p>
