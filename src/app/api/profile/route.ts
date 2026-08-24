@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { handleApiError } from '@/lib/api-error'
-import { getCurrentProfile, saveProfile } from '@/features/settings/api/profile.service'
+import { getCurrentProfile, saveProfile, deleteAccount } from '@/features/settings/api/profile.service'
 
 export async function GET() {
   try {
@@ -24,6 +24,22 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json()
     await saveProfile(user.id, body)
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return handleApiError(error)
+  }
+}
+
+export async function DELETE() {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+
+    const deleted = await deleteAccount(user.id)
+    if (!deleted) {
+      return NextResponse.json({ error: 'Suppression du compte refusée.' }, { status: 403 })
+    }
     return NextResponse.json({ success: true })
   } catch (error) {
     return handleApiError(error)

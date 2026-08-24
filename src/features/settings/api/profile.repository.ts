@@ -22,3 +22,15 @@ export async function upsertProfile(userId: string, input: ProfilePatchInput) {
     )
   if (error) throw error
 }
+
+/**
+ * Suppression du compte via la RPC serveur sécurisée (SECURITY DEFINER +
+ * auth.uid() check). La RPC refuse tout user_id différent de la session.
+ * Retourne `true` si la suppression a eu lieu, `false` si refusée.
+ */
+export async function deleteUserAccount(userId: string): Promise<boolean> {
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('delete_user_account', { user_id: userId })
+  if (error) throw error
+  return data === true
+}

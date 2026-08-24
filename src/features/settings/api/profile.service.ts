@@ -10,3 +10,8 @@ export async function saveProfile(userId: string, rawInput: unknown) {
   await repo.upsertProfile(userId, input)
   return { success: true }
 }
+
+/** Supprime le compte de l'utilisateur courant. Retourne false si la RPC refuse. */
+export async function deleteAccount(userId: string): Promise<boolean> {
+  return repo.deleteUserAccount(userId)
+}

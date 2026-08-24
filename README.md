@@ -55,8 +55,11 @@ Les migrations SQL sont versionnées dans `supabase/sql/` et doivent être appli
 
 ```bash
 ls supabase/sql/*.sql
-# 0001_force_rls.sql  →  FORCE ROW LEVEL SECURITY sur toutes les tables
-# 0002_delete_user_account.sql  →  RPC delete_user_account + triggers
+# 0001_force_rls.sql          →  FORCE ROW LEVEL SECURITY sur toutes les tables
+# 0002_delete_user_account.sql  →  RPC delete_user_account sécurisée (SECURITY DEFINER + auth.uid()) + triggers
+# 0003_notifications_table.sql  →  Table notifications + policies RLS + realtime
+# 0004_rls_policies.sql         →  Policies RLS des tables métier (clients, invoices, invoice_items, payments, profiles)
+# 0005_rls_audit.sql            →  Audit RLS (lecture seule) : à exécuter dans le SQL Editor pour vérifier le DoD 0.1
 ```
 
 > ⚠️ Avant tout déploiement public : [Phase 0 du ROADMAP](ROADMAP.md) doit être validée (RLS vérifiée + aucune clé service_role dans le repo).

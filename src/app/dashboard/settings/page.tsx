@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useDashboardTheme } from '@/app/dashboard/theme-context'
 
 type ToastState = { type: 'success' | 'error'; message: string } | null
 
@@ -48,53 +49,57 @@ const initialProfile: ProfileState = {
   push_notifications: false,
 }
 
-const inputStyle: React.CSSProperties = {
+const makeInputStyle = (isDark: boolean): React.CSSProperties => ({
   width: '100%',
   height: 42,
-  border: '1px solid #E2E8F0',
+  border: `1px solid ${isDark ? '#334155' : '#E2E8F0'}`,
   borderRadius: 10,
   padding: '0 14px',
   fontSize: 14,
-  color: '#0F172A',
-  background: '#F8FAFC',
+  color: isDark ? '#F8FAFC' : '#0F172A',
+  background: isDark ? '#1F2937' : '#F8FAFC',
   outline: 'none',
   fontFamily: 'inherit',
   boxSizing: 'border-box',
   transition: 'border-color 0.2s ease',
-}
+})
 
-const labelStyle: React.CSSProperties = {
+const makeLabelStyle = (muted: string): React.CSSProperties => ({
   display: 'block',
   fontSize: 13,
   fontWeight: 600,
-  color: '#374151',
+  color: muted,
   marginBottom: 6,
-}
+})
 
-const cardStyle: React.CSSProperties = {
-  background: '#fff',
-  border: '1px solid #E2E8F0',
+const makeCardStyle = (isDark: boolean): React.CSSProperties => ({
+  background: isDark ? '#111827' : '#fff',
+  border: `1px solid ${isDark ? '#334155' : '#E2E8F0'}`,
   borderRadius: 16,
   padding: 24,
   boxShadow: '0 10px 30px -18px rgba(15, 23, 42, 0.22)',
-}
+})
 
 function SectionCard({ title, description, icon, onSave, saveLabel = 'Enregistrer', saving = false, children }: { title: string; description: string; icon: React.ReactNode; onSave?: () => void; saveLabel?: string; saving?: boolean; children: React.ReactNode }) {
   const [hovered, setHovered] = useState(false)
+  const { theme } = useDashboardTheme()
+  const isDark = theme === 'dark'
+  const text = isDark ? '#F8FAFC' : '#111827'
+  const muted = isDark ? '#94A3B8' : '#64748B'
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        ...cardStyle,
+        ...makeCardStyle(isDark),
         display: 'flex',
         flexDirection: 'column',
         gap: 18,
         transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
         transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
         boxShadow: hovered ? '0 16px 38px -22px rgba(15, 23, 42, 0.28)' : '0 10px 30px -18px rgba(15, 23, 42, 0.22)',
-        borderColor: hovered ? '#CBD5E1' : '#E2E8F0',
+        borderColor: hovered ? (isDark ? '#475569' : '#CBD5E1') : (isDark ? '#334155' : '#E2E8F0'),
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
@@ -103,8 +108,8 @@ function SectionCard({ title, description, icon, onSave, saveLabel = 'Enregistre
             {icon}
           </div>
           <div>
-            <h2 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700, color: '#111827' }}>{title}</h2>
-            <p style={{ margin: 0, fontSize: 13, color: '#64748B', lineHeight: 1.5 }}>{description}</p>
+            <h2 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700, color: text }}>{title}</h2>
+            <p style={{ margin: 0, fontSize: 13, color: muted, lineHeight: 1.5 }}>{description}</p>
           </div>
         </div>
         {onSave && (
@@ -119,11 +124,16 @@ function SectionCard({ title, description, icon, onSave, saveLabel = 'Enregistre
 }
 
 function ToggleSwitch({ checked, onChange, label, hint }: { checked: boolean; onChange: () => void; label: string; hint: string }) {
+  const { theme } = useDashboardTheme()
+  const isDark = theme === 'dark'
+  const text = isDark ? '#F8FAFC' : '#0F172A'
+  const muted = isDark ? '#94A3B8' : '#64748B'
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid #F1F5F9' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: `1px solid ${isDark ? '#334155' : '#F1F5F9'}` }}>
       <div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#0F172A' }}>{label}</div>
-        <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>{hint}</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: text }}>{label}</div>
+        <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>{hint}</div>
       </div>
       <button
         type="button"
@@ -134,7 +144,7 @@ function ToggleSwitch({ checked, onChange, label, hint }: { checked: boolean; on
           height: 28,
           borderRadius: 999,
           border: 'none',
-          background: checked ? '#2563EB' : '#CBD5E1',
+          background: checked ? '#2563EB' : (isDark ? '#475569' : '#CBD5E1'),
           cursor: 'pointer',
           padding: 3,
           display: 'flex',
@@ -143,7 +153,7 @@ function ToggleSwitch({ checked, onChange, label, hint }: { checked: boolean; on
           transition: 'all 0.2s ease',
         }}
       >
-        <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 2px 6px rgba(15,23,42,0.16)' }} />
+        <span style={{ width: 22, height: 22, borderRadius: '50%', background: isDark ? '#F8FAFC' : '#fff', boxShadow: '0 2px 6px rgba(15,23,42,0.16)' }} />
       </button>
     </div>
   )
@@ -151,6 +161,12 @@ function ToggleSwitch({ checked, onChange, label, hint }: { checked: boolean; on
 
 export default function SettingsPage() {
   const router = useRouter()
+  const { theme } = useDashboardTheme()
+  const isDark = theme === 'dark'
+  const text = isDark ? '#F8FAFC' : '#0F172A'
+  const muted = isDark ? '#94A3B8' : '#64748B'
+  const inputStyle = makeInputStyle(isDark)
+  const labelStyle = makeLabelStyle(muted)
   const [profile, setProfile] = useState<ProfileState>(initialProfile)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<Record<string, boolean>>({})
@@ -309,25 +325,19 @@ export default function SettingsPage() {
     if (!confirmed) return
 
     setDeleting(true)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    try {
+      const res = await fetch('/api/profile', { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setToast({ type: 'error', message: body.error || 'La suppression du compte a échoué.' })
+        return
+      }
 
-    if (!user) {
-      setToast({ type: 'error', message: 'Impossible de retrouver votre session.' })
+      await createClient().auth.signOut()
+      router.push('/login')
+    } finally {
       setDeleting(false)
-      return
     }
-
-    const { error } = await supabase.rpc('delete_user_account', { user_id: user.id })
-    setDeleting(false)
-
-    if (error) {
-      setToast({ type: 'error', message: error.message || 'La suppression du compte a échoué.' })
-      return
-    }
-
-    await supabase.auth.signOut()
-    router.push('/login')
   }
 
   return (
@@ -336,8 +346,8 @@ export default function SettingsPage() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.7px' }}>Paramètres</h1>
-          <p style={{ margin: 0, fontSize: 14, color: '#64748B' }}>Gérez votre profil, votre entreprise, vos préférences de facturation et votre sécurité.</p>
+          <h1 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 800, color: text, letterSpacing: '-0.7px' }}>Paramètres</h1>
+          <p style={{ margin: 0, fontSize: 14, color: muted }}>Gérez votre profil, votre entreprise, vos préférences de facturation et votre sécurité.</p>
         </div>
       </div>
 
@@ -351,9 +361,9 @@ export default function SettingsPage() {
           padding: '12px 14px',
           fontSize: 13,
           fontWeight: 600,
-          border: `1px solid ${toast.type === 'success' ? '#86EFAC' : '#FCA5A5'}`,
-          background: toast.type === 'success' ? '#ECFDF3' : '#FEF2F2',
-          color: toast.type === 'success' ? '#166534' : '#B91C1C',
+          border: `1px solid ${toast.type === 'success' ? (isDark ? '#166534' : '#86EFAC') : (isDark ? '#7F1D1D' : '#FCA5A5')}`,
+          background: toast.type === 'success' ? (isDark ? '#052E16' : '#ECFDF3') : (isDark ? '#450A0A' : '#FEF2F2'),
+          color: toast.type === 'success' ? (isDark ? '#4ADE80' : '#166534') : (isDark ? '#FCA5A5' : '#B91C1C'),
           animation: 'fadeUp 0.25s ease-out',
           boxShadow: '0 12px 28px -18px rgba(15, 23, 42, 0.28)',
         }}>
@@ -362,7 +372,7 @@ export default function SettingsPage() {
       )}
 
       {loading ? (
-        <div style={{ ...cardStyle, textAlign: 'center', color: '#64748B', padding: '32px 24px' }}>Chargement de vos paramètres…</div>
+        <div style={{ ...makeCardStyle(isDark), textAlign: 'center', color: muted, padding: '32px 24px' }}>Chargement de vos paramètres…</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <SectionCard title="Profil" description="Mettez à jour vos informations personnelles pour votre compte." icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}><path d="M20 21a8 8 0 00-16 0"/><circle cx="12" cy="8" r="4"/></svg>} onSave={handleProfileSave} saving={saving.profile}>
@@ -478,9 +488,9 @@ export default function SettingsPage() {
           </SectionCard>
 
           <SectionCard title="Zone de danger" description="Supprimez définitivement votre compte et vos données." icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}><path d="M10 11v6"/><path d="M14 11v6"/><path d="M4 7h16"/><path d="M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12"/><path d="M9 7V4h6v3"/></svg>} onSave={handleDeleteAccount} saving={deleting} saveLabel="Supprimer">
-            <div style={{ border: '1px solid #FECACA', borderRadius: 12, padding: 16, background: '#FEF2F2' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#991B1B', marginBottom: 8 }}>Action irréversible</div>
-              <p style={{ margin: '0 0 14px', fontSize: 13, color: '#7F1D1D', lineHeight: 1.6 }}>La suppression du compte effacera vos données de profil et vous déconnectera immédiatement.</p>
+            <div style={{ border: `1px solid ${isDark ? '#7F1D1D' : '#FECACA'}`, borderRadius: 12, padding: 16, background: isDark ? 'rgba(220,38,38,0.12)' : '#FEF2F2' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#FCA5A5' : '#991B1B', marginBottom: 8 }}>Action irréversible</div>
+              <p style={{ margin: '0 0 14px', fontSize: 13, color: isDark ? '#FECACA' : '#7F1D1D', lineHeight: 1.6 }}>La suppression du compte effacera vos données de profil et vous déconnectera immédiatement.</p>
               <button onClick={handleDeleteAccount} disabled={deleting} style={{
                 height: 40,
                 padding: '0 16px',
