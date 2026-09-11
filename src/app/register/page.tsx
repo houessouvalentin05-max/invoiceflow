@@ -128,7 +128,7 @@ export default function RegisterPage() {
             <a href="/login" style={{color:'#2563EB',fontWeight:600,textDecoration:'none'}}>Se connecter</a>
           </p>
 
-          <form onSubmit={handleSubmit(onSubmit)} style={{display:'flex',flexDirection:'column',gap:20}}>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate style={{display:'flex',flexDirection:'column',gap:20}}>
 
             {/* Email */}
             <div>
