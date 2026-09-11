@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { useDashboardTheme } from '@/app/dashboard/theme-context'
 
 interface AutomationCard {
@@ -20,15 +19,11 @@ export default function AutomationsPage() {
   const muted = isDark ? '#94A3B8' : '#64748B'
   const accent = '#2563EB'
 
-  const [automations, setAutomations] = useState<AutomationCard[]>([
+  const automations: AutomationCard[] = [
     { key: 'reminders', title: 'Relances de paiement', description: 'Envoyer un rappel automatique 3 jours avant l’échéance et 7 jours après.', detail: 'Réduit les oublis et améliore la trésorerie.', active: true },
     { key: 'status', title: 'Mise à jour de statut', description: 'Passer automatiquement les factures en retard quand le paiement n’arrive pas.', detail: 'Gagne du temps sur la gestion quotidienne.', active: true },
     { key: 'followup', title: 'Suivi clients', description: 'Préparer un email de relance pour les clients récurrents à partir d’un modèle.', detail: 'Renforce la relation client sans effort manuel.', active: false },
-  ])
-
-  const toggleAutomation = (key: string) => {
-    setAutomations(prev => prev.map(item => item.key === key ? { ...item, active: !item.active } : item))
-  }
+  ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -47,8 +42,13 @@ export default function AutomationsPage() {
                 <p style={{ fontSize: 13, color: muted, margin: '0 0 6px' }}>{item.description}</p>
                 <p style={{ fontSize: 12, color: muted, margin: 0 }}>{item.detail}</p>
               </div>
-              <button onClick={() => toggleAutomation(item.key)} style={{ height: 38, padding: '0 14px', borderRadius: 999, border: `1px solid ${border}`, background: item.active ? 'rgba(37,99,235,0.1)' : surface, color: item.active ? accent : muted, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                {item.active ? 'Activée' : 'Désactivée'}
+              <button
+                type="button"
+                aria-label={`${item.title} : aperçu, sauvegarde bientôt disponible`}
+                title="Aperçu — la sauvegarde arrive bientôt"
+                style={{ height: 38, padding: '0 14px', borderRadius: 999, border: `1px solid ${border}`, background: item.active ? 'rgba(37,99,235,0.1)' : surface, color: item.active ? accent : muted, fontSize: 13, fontWeight: 700, cursor: 'default', fontFamily: 'inherit', opacity: 0.85 }}
+              >
+                {item.active ? 'Activée (aperçu)' : 'Désactivée (aperçu)'}
               </button>
             </div>
           </div>
