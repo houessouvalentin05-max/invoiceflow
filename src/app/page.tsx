@@ -395,8 +395,8 @@ export default function HomePage() {
             </div>
             <div>
               <div className="section-eyebrow">Automatisations</div>
-              <h2 className="section-title">Laissez InvoiceFlow travailler pendant votre sommeil.</h2>
-              <p className="section-desc">Créez des règles qui gèrent vos relances et factures récurrentes sans lever le petit doigt.</p>
+              <h2 className="section-title">Lancez bientôt vos automatisations.</h2>
+              <p className="section-desc">Les rappels et factures récurrentes arrivent dans une prochaine version. Cette zone est une maquette, rien n&apos;est appliqué à vos données.</p>
               <ul className="check-list">
                 {["Rappels automatiques pour factures en retard","Génération de factures récurrentes","Emails de confirmation de paiement","Générateur trigger → condition → action"].map(b=>(
                   <li key={b}>
