@@ -1,3 +1,4 @@
+import Script from "next/script";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
@@ -24,12 +25,15 @@ export default function RootLayout({
     >
       <head>
         {/* Anti-flash du thème : pose data-theme + classe .dark AVANT le premier paint SSR/client.
-            Aucun thème stocké → on suit la préférence système, puis on écrit le choix explicite. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('invoiceflow-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}var r=document.documentElement;r.setAttribute('data-theme',t);if(t==='dark'){r.classList.add('dark');}else{r.classList.remove('dark');}}catch(e){}})();`,
-          }}
-        />
+            Aucun thème stocké → on suit la préférence système, puis on écrit le choix explicite.
+            `next/script` avec strategy="beforeInteractive" est la méthode supportée par Next 16
+            pour les scripts critiques d'hydratation (remplace le <script dangerouslySetInnerHTML>
+            qui provoquait un warning React 19 "Encountered a script tag while rendering"). */}
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`
+            (function(){try{var t=localStorage.getItem('invoiceflow-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}var r=document.documentElement;r.setAttribute('data-theme',t);if(t==='dark'){r.classList.add('dark');}else{r.classList.remove('dark');}}catch(e){}})();
+          `}
+        </Script>
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
