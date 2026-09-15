@@ -25,6 +25,7 @@ export default function ReportsPage() {
   const [summary, setSummary] = useState<ReportSummary>({ totalInvoices: 0, totalCollected: 0, pendingCount: 0, overdueCount: 0 })
   const [status, setStatus] = useState<'loading' | 'success' | 'empty' | 'error'>('loading')
   const [retryKey, setRetryKey] = useState(0)
+  const [invoices, setInvoices] = useState<{ invoice_number: string; status: string; total: number }[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -34,9 +35,10 @@ export default function ReportsPage() {
         const res = await fetch('/api/invoices')
         if (!res.ok) throw new Error(`Réponse API invalide (invoices: ${res.status})`)
 
-        const invoices: { status: string; total: number }[] = await res.json()
-        const items = invoices || []
+        const data: { invoice_number: string; status: string; total: number }[] = await res.json()
+        const items = data || []
         if (cancelled) return
+        setInvoices(items)
         const nextSummary: ReportSummary = {
           totalInvoices: items.length,
           totalCollected: items.filter(i => i.status === 'paid').reduce((sum, item) => sum + Number(item.total || 0), 0),
@@ -55,6 +57,22 @@ export default function ReportsPage() {
     void load()
     return () => { cancelled = true }
   }, [retryKey])
+
+  function exportCsv() {
+    const rows = [
+      ['N° Facture', 'Statut', 'Montant'].join(','),
+      ...invoices.map(i => [i.invoice_number, i.status, String(i.total)].join(',')),
+    ]
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'rapports-factures.csv'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   const reports = [
     { title: 'Résumé mensuel', description: 'Vue globale de vos revenus, factures en attente et paiements reçus.', stat: fmtXof(summary.totalCollected) },
@@ -144,7 +162,7 @@ export default function ReportsPage() {
       <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 20, boxShadow: isDark ? '0 10px 24px -18px rgba(2,6,23,0.65)' : '0 10px 24px -18px rgba(15,23,42,0.2)' }}>
         <h2 style={{ fontSize: 15, fontWeight: 700, color: text, margin: '0 0 10px' }}>Actions rapides</h2>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button style={{ height: 40, padding: '0 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Exporter en PDF</button>
+          <button onClick={exportCsv} style={{ height: 40, padding: '0 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Exporter en CSV</button>
           <button style={{ height: 40, padding: '0 16px', borderRadius: 10, border: `1px solid ${border}`, background: surface, color: muted, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Envoyer par email</button>
           <button style={{ height: 40, padding: '0 16px', borderRadius: 10, border: `1px solid ${border}`, background: surface, color: muted, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Créer un rapport hebdo</button>
         </div>
