@@ -13,7 +13,7 @@ import { NextResponse, type NextRequest } from 'next/server'
  *
  * Must be a DEFAULT export for Next.js to recognise it as middleware.
  */
-export default async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
