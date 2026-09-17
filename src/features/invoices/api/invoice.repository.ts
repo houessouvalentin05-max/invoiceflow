@@ -81,7 +81,8 @@ export async function getUserDefaultTva(userId: string) {
   const { data, error } = await supabase
     .from('profiles')
     .select('default_tva')
-    .eq('user_id', userId)
+    // profiles est keyée sur id (= auth.users.id), pas sur user_id.
+    .eq('id', userId)
     .maybeSingle()
   if (error) throw error
   return (data?.default_tva as string | null) ?? null

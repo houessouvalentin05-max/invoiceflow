@@ -6,7 +6,9 @@ export async function getProfile(userId: string) {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('user_id', userId)
+    // profiles est keyée sur id (= auth.users.id) : la table n'a PAS de
+    // colonne user_id (vérifié en base le 17/09 — cf. migration 0006).
+    .eq('id', userId)
     .maybeSingle()
   if (error) throw error
   return data
@@ -17,7 +19,7 @@ export async function upsertProfile(userId: string, input: ProfilePatchInput) {
   const { error } = await supabase
     .from('profiles')
     .upsert(
-      { id: userId, user_id: userId, ...input, updated_at: new Date().toISOString() },
+      { id: userId, ...input, updated_at: new Date().toISOString() },
       { onConflict: 'id' }
     )
   if (error) throw error
