@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS public.notifications (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id uuid NOT NULL REFERENCES public.profiles (user_id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
     type text NOT NULL CHECK (type IN (
         'payment_received',
         'invoice_paid',
@@ -20,9 +20,11 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 CREATE INDEX IF NOT EXISTS notifications_user_read_created_idx
     ON public.notifications (user_id, read, created_at DESC);
 
--- Vérifier que le user_id est une clé unique sur profiles (le template Supabase
--- le définit en PRIMARY KEY). Si ce n'est pas le cas, retirer la REFERENCES
--- avant d'appliquer la migration.
+-- ⚠️ Corrigé le 17/09 : la FK visait public.profiles (user_id), colonne qui
+-- n'existe pas (profiles est keyée sur id = auth.users.id). La table n'avait
+-- donc jamais pu être créée. La FK vise désormais profiles (id), sa PK.
+-- La colonne applicative reste nommée user_id (attendu par
+-- src/features/notifications/api/notification.repository.ts).
 
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications FORCE ROW LEVEL SECURITY;

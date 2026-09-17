@@ -1,17 +1,21 @@
--- Migration 2.6 : RPC delete_user_account sécurisée + triggers (DoD 2.6)
+-- Migration 2.6 (réécrite le 17/09) : RPC delete_user_account + cascades.
+--
+-- ⚠️ RÉÉCRITURE après audit en base : la version précédente référençait
+-- public.profiles.user_id, colonne qui N'EXISTE PAS (profiles est keyée sur
+-- id = auth.users.id). La migration ne pouvait donc pas s'appliquer et la
+-- RPC était absente en base (0 fonction publique, appel REST → PGRST202/404).
 --
 -- SECURITY DEFINER + contrôle strict auth.uid() : un utilisateur ne peut
 -- supprimer QUE SON propre compte — jamais un user_id arbitraire. C'est ce
 -- check, et non RLS, qui est le verrou principal de cette RPC.
 -- Retourne un boolean pour que l'app puisse distinguer succès / refus clair.
 --
--- NB : la fonction est créée par la migration, donc possédée par le superuser
--- Supabase (BYPASSRLS) → les DELETE passent même hors policies. Les policies
--- de 0004_rls_policies.sql restent indispensables pour les accès TABLE via la
--- clé anon (lectures/écritures applicatives). Appliquer les migrations dans
--- l'ordre.
+-- Stratégie de suppression : on supprime la ligne auth.users et on laisse
+-- les FK ON DELETE CASCADE nettoyer le reste (profiles.id, clients.user_id,
+-- invoices.user_id, invoice_items→invoices, recurring_invoices,
+-- automation_reminders). Seule exception : payments_user_id_fkey n'a PAS de
+-- CASCADE → on purge explicitement les paiements du user d'abord.
 
--- 1. RPC sécurisée de suppression de compte
 CREATE OR REPLACE FUNCTION public.delete_user_account(user_id uuid)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -26,23 +30,18 @@ BEGIN
         RETURN false;
     END IF;
 
-    -- Ordre enfants → parents pour respecter les clés étrangères
+    -- Seule FK sans ON DELETE CASCADE vers auth.users : on purge d'abord.
+    -- ⚠️ Colonnes qualifiées OBLIGATOIREMENT : le paramètre s'appelle user_id
+    -- et masquerait la colonne (erreur 42702 "column reference is ambiguous").
     DELETE FROM public.payments
-    WHERE user_id = target_user;
+    WHERE payments.user_id = target_user;
 
-    DELETE FROM public.invoice_items
-    WHERE invoice_id IN (SELECT id FROM public.invoices WHERE user_id = target_user);
+    -- Le reste suit en cascade (profiles, clients, invoices, invoice_items,
+    -- recurring_invoices, automation_reminders).
+    DELETE FROM auth.users
+    WHERE auth.users.id = target_user;
 
-    DELETE FROM public.invoices
-    WHERE user_id = target_user;
-
-    DELETE FROM public.clients
-    WHERE user_id = target_user;
-
-    DELETE FROM public.profiles
-    WHERE user_id = target_user;
-
-    RETURN true;
+    RETURN FOUND;
 END;
 $$;
 
@@ -51,22 +50,8 @@ REVOKE ALL ON FUNCTION public.delete_user_account(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.delete_user_account(uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.delete_user_account(uuid) TO authenticated;
 
--- 2. Trigger : passage en statut overdue des factures d'un profil supprimé
-CREATE OR REPLACE FUNCTION public.set_invoices_overdue_on_user_delete()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    UPDATE public.invoices
-    SET status = 'overdue', updated_at = now()
-    WHERE user_id = OLD.user_id AND status != 'overdue';
-    RETURN OLD;
-END;
-$$;
-
--- 3. Appliquer le trigger aux suppressions de profil
+-- Nettoyage : l'ancien trigger marquait des factures "overdue" après
+-- suppression d'un profil. Obsolète (les factures sont supprimées en
+-- cascade) et cassé (référençait OLD.user_id, colonne inexistante).
 DROP TRIGGER IF EXISTS set_invoices_overdue_on_user_delete_trigger ON public.profiles;
-CREATE TRIGGER set_invoices_overdue_on_user_delete_trigger
-    AFTER DELETE ON public.profiles
-    FOR EACH ROW
-    EXECUTE FUNCTION public.set_invoices_overdue_on_user_delete();
+DROP FUNCTION IF EXISTS public.set_invoices_overdue_on_user_delete();
