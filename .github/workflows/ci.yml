@@ -9,6 +9,12 @@ jobs:
   verify:
     name: Lint · Typecheck · Test · Build
     runs-on: ubuntu-latest
+    env:
+      # Secret OPTIONNEL. S'il est défini, l'étape « Migrations — état réel de
+      # la base » s'active et compare la base au contrat des migrations.
+      # Tant qu'il est absent, cette étape est simplement ignorée (skip) : le
+      # garde-fou statique ci-dessous reste actif dans tous les cas.
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +34,215 @@ jobs:
 
       - name: Test
         run: npm test
+
+      # ────────────────────────────────────────────────────────────────
+      # Garde-fou migrations — niveau 1 : statique (aucun secret requis)
+      # Ajouté le 18/09 après l'incident P0 : 0002/0003/0004 référençaient
+      # profiles.user_id, colonne inexistante → inapplicables, jamais
+      # appliquées, et rien ne le signalait.
+      # ────────────────────────────────────────────────────────────────
+      - name: Migrations — convention des fichiers
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(supabase/sql/*.sql)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::aucune migration trouvée dans supabase/sql/"
+            exit 1
+          fi
+
+          fail=0
+          for f in "${files[@]}"; do
+            base=$(basename "$f")
+            if ! [[ "$base" =~ ^[0-9]{4}_[a-z0-9_]+\.sql$ ]]; then
+              echo "::error file=$f::nom de migration non conforme (attendu NNNN_nom_en_minuscules.sql)"
+              fail=1
+            fi
+          done
+
+          prefixes=$(printf '%s\n' "${files[@]}" | xargs -n1 basename | cut -c1-4)
+          dups=$(printf '%s\n' "$prefixes" | sort | uniq -d | tr '\n' ' ')
+          if [ -n "$dups" ]; then
+            echo "::error::préfixes de migration dupliqués : $dups"
+            fail=1
+          fi
+
+          max=$(printf '%s\n' "$prefixes" | sort -n | tail -1)
+          expected=$(printf '%04d' "${#files[@]}")
+          if [ "$max" != "$expected" ]; then
+            echo "::error::numérotation non contiguë : dernier préfixe=$max alors que ${#files[@]} fichiers existent (une migration a-t-elle été supprimée ?)"
+            fail=1
+          fi
+
+          if [ $fail -eq 0 ]; then
+            echo "OK — ${#files[@]} migrations, numérotation 0001..$max, noms conformes."
+          fi
+          exit $fail
+
+      - name: Migrations — régressions connues (profiles.user_id, audits RLS)
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          fail=0
+          for f in supabase/sql/*.sql; do
+            # Les commentaires (--) sont retirés avant analyse : ils documentent
+            # justement ces bugs, il ne doivent pas déclencher le garde-fou.
+            code=$(sed 's/--.*$//' "$f")
+
+            if printf '%s\n' "$code" | grep -nE 'profiles[[:space:]]*\([[:space:]]*user_id' >&2; then
+              echo "::error file=$f::référence à profiles(user_id) — cette colonne n'existe pas (clé = id)"
+              fail=1
+            fi
+
+            if printf '%s\n' "$code" | grep -nE 'profiles[[:space:]]*\.[[:space:]]*user_id' >&2; then
+              echo "::error file=$f::référence à profiles.user_id — colonne inexistante (clé = id)"
+              fail=1
+            fi
+
+            if printf '%s\n' "$code" | grep -q 'pg_tables' \
+               && printf '%s\n' "$code" | grep -q 'forcerowsecurity'; then
+              echo "::error file=$f::forcerowsecurity lu dans pg_tables — cette colonne n'existe que dans pg_class"
+              fail=1
+            fi
+
+            if printf '%s\n' "$code" | grep -nE 'pg_get_expr\([^)]*relid' >&2; then
+              echo "::error file=$f::pg_get_expr(..., relid) invalide — pg_policies expose déjà qual/with_check"
+              fail=1
+            fi
+
+            # Forme non qualifiée : policy sur public.profiles filtrant sur
+            # user_id (ex : USING (user_id = auth.uid())). C'est exactement ce
+            # que faisait 0004 avant correction.
+            if printf '%s\n' "$code" | grep -nE -A3 'ON[[:space:]]+public\.profiles' | grep -nE 'user_id' >&2; then
+              echo "::error file=$f::policy sur public.profiles filtrant sur user_id — colonne inexistante (clé = id)"
+              fail=1
+            fi
+
+            # Forme non qualifiée : DELETE/UPDATE visant public.profiles puis
+            # user_id (ex : DELETE FROM public.profiles WHERE user_id = ...).
+            if printf '%s\n' "$code" | grep -nE -A2 '(DELETE FROM|UPDATE)[[:space:]]+public\.profiles' | grep -nE 'user_id' >&2; then
+              echo "::error file=$f::DELETE/UPDATE sur public.profiles filtrant sur user_id — colonne inexistante (clé = id)"
+              fail=1
+            fi
+          done
+
+          if [ $fail -eq 0 ]; then
+            echo "OK — aucune régression connue détectée dans supabase/sql/."
+          fi
+          exit $fail
+
+      # ───────────────────────────────────────────────────────────────
+      # Garde-fou secrets — un run vert prouve que les secrets existent.
+      # Sans ça, le build passait même avec des NEXT_PUBLIC_* vides :
+      # Next.js inline `undefined` sans erreur et toutes les pages sont
+      # statiques, donc l'absence de secrets restait invisible.
+      # ───────────────────────────────────────────────────────────────
+      - name: Secrets — NEXT_PUBLIC_SUPABASE_* configurés
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+
+          test -n "${NEXT_PUBLIC_SUPABASE_URL:-}" \
+            || { echo "::error::Le secret NEXT_PUBLIC_SUPABASE_URL est manquant ou vide (Settings → Secrets and variables → Actions)"; exit 1; }
+
+          test -n "${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}" \
+            || { echo "::error::Le secret NEXT_PUBLIC_SUPABASE_ANON_KEY est manquant ou vide (Settings → Secrets and variables → Actions)"; exit 1; }
+
+          case "$NEXT_PUBLIC_SUPABASE_URL" in
+            https://*.supabase.co)
+              echo "OK — secret NEXT_PUBLIC_SUPABASE_URL bien formée (https://<ref>.supabase.co)."
+              ;;
+            *)
+              echo "::error::NEXT_PUBLIC_SUPABASE_URL ne ressemble pas à une URL Supabase (attendu https://<ref>.supabase.co)"
+              exit 1
+              ;;
+          esac
+
+          echo "OK — les 2 secrets NEXT_PUBLIC_* sont présents et non vides."
+
+      # ───────────────────────────────────────────────────────────────
+      # Garde-fou migrations — niveau 2 : état réel de la base.
+      # Actif UNIQUEMENT si le secret SUPABASE_ACCESS_TOKEN est défini.
+      # Lecture seule : interroge la Management API Supabase et vérifie que
+      # les objets promis par les migrations existent réellement en base.
+      # ───────────────────────────────────────────────────────────────
+      - name: Migrations — état réel de la base (si SUPABASE_ACCESS_TOKEN est défini)
+        if: env.SUPABASE_ACCESS_TOKEN != ''
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+
+          REF=$(printf '%s' "$SUPABASE_URL" | sed -E 's#^https://([a-z0-9-]+)\.supabase\.co.*$#\1#')
+          if [ -z "$REF" ] || [ "$REF" = "$SUPABASE_URL" ]; then
+            echo "::error::impossible d'extraire la ref du projet depuis NEXT_PUBLIC_SUPABASE_URL"
+            exit 1
+          fi
+          echo "Projet ciblé : $REF"
+
+          SQL="select json_build_object(\
+          'profiles_sans_user_id', not exists (select 1 from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='user_id'),\
+          'notifications_existe', exists (select 1 from information_schema.tables where table_schema='public' and table_name='notifications'),\
+          'rpc_delete_user_account_existe', exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname='public' and p.proname='delete_user_account'),\
+          'trigger_handle_new_user_existe', exists (select 1 from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace where n.nspname='auth' and c.relname='users' and t.tgname='on_auth_user_created'),\
+          'aucune_policy_profiles_sur_user_id', not exists (select 1 from pg_policies where schemaname='public' and tablename='profiles' and (qual like '%user_id%' or with_check like '%user_id%')),\
+          'force_rls_sur_8_tables', (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity and c.relforcerowsecurity) = 8\
+          ) as drift"
+
+          node -e 'require("fs").writeFileSync(process.argv[2], JSON.stringify({ query: process.argv[1] }))' "$SQL" "$RUNNER_TEMP/payload.json"
+
+          status=$(curl -sS -o "$RUNNER_TEMP/drift.json" -w '%{http_code}' \
+            -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H 'Content-Type: application/json' \
+            --data-binary "@$RUNNER_TEMP/payload.json")
+          echo "Management API — HTTP $status"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::appel à la Management API échoué (HTTP $status)"
+            cat "$RUNNER_TEMP/drift.json"
+            exit 1
+          fi
+
+          node -e '
+            const raw = require("fs").readFileSync(process.argv[1], "utf8");
+            let rows;
+            try {
+              rows = JSON.parse(raw);
+            } catch (error) {
+              console.log("::error::réponse non parseable de la Management API : " + String(error));
+              console.log(raw.slice(0, 500));
+              process.exit(1);
+            }
+            const drift = (Array.isArray(rows) ? rows[0] : rows).drift;
+            if (!drift || typeof drift !== "object") {
+              console.log("::error::réponse inattendue (objet drift absent) — jeton invalide, droits insuffisants ou endpoint modifié ?");
+              console.log(raw.slice(0, 500));
+              process.exit(1);
+            }
+            const expected = {
+              profiles_sans_user_id: true,
+              notifications_existe: true,
+              rpc_delete_user_account_existe: true,
+              trigger_handle_new_user_existe: true,
+              aucune_policy_profiles_sur_user_id: true,
+              force_rls_sur_8_tables: true,
+            };
+            let fail = 0;
+            for (const [key, value] of Object.entries(expected)) {
+              const actual = drift ? drift[key] : undefined;
+              const ok = actual === value;
+              console.log((ok ? "OK   " : "ECHEC") + "  " + key + " = " + String(actual));
+              if (!ok) {
+                console.log("::error title=Drift de schéma::" + key + " ne correspond pas au contrat des migrations (attendu " + String(value) + ")");
+                fail = 1;
+              }
+            }
+            process.exit(fail);
+          ' "$RUNNER_TEMP/drift.json"
 
       - name: Build
         run: npm run build
