@@ -39,8 +39,10 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  // Email en attente de confirmation : non-null ⇒ écran « vérifiez votre boîte mail ».
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
 
-  const { register, handleSubmit, formState: { errors } } = useForm<RegisterInput>({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
   })
 
@@ -48,16 +50,34 @@ export default function RegisterPage() {
     setLoading(true)
     setError(null)
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
+      options: {
+        // Le lien de confirmation doit revenir sur /auth/callback, seule route
+        // qui sait échanger le `?code=` PKCE contre une session. Sans ça
+        // Supabase renvoie sur la racine du site (site_url) où le code est perdu.
+        // Les URLs de retour sont allow-listées côté Supabase (Redirect URLs).
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     })
     if (error) {
       setError(error.message)
       setLoading(false)
       return
     }
-    router.push('/dashboard')
+
+    // Autoconfirm activé côté Supabase ⇒ session immédiate, on entre direct.
+    if (signUpData.session) {
+      router.push('/dashboard')
+      return
+    }
+
+    // Confirmation par email requise (cas de ce projet) : aucune session
+    // n'existe encore, donc /dashboard redirigerait vers /login. On affiche
+    // l'étape suivante à la place.
+    setLoading(false)
+    setPendingEmail(signUpData.user?.email ?? data.email)
   }
 
   return (
@@ -120,6 +140,55 @@ export default function RegisterPage() {
       {/* RIGHT — Form */}
       <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'48px 32px'}}>
         <div style={{width:'100%',maxWidth:420}}>
+          {pendingEmail ? (
+            /* ── Écran 2 : confirmation email requise ───────────────────────
+               Distinct de l'écran d'erreur (message rouge) : ici tout s'est
+               bien passé, il reste une action côté utilisateur. */
+            <div role="status" aria-live="polite">
+              <div style={{width:56,height:56,borderRadius:16,background:'rgba(37,99,235,0.08)',border:'1px solid rgba(37,99,235,0.2)',display:'grid',placeItems:'center',marginBottom:20}}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:26,height:26}}>
+                  <rect x="3" y="5" width="18" height="14" rx="2.5"/>
+                  <path d="M3.5 7.5l8.5 6 8.5-6"/>
+                </svg>
+              </div>
+
+              <h1 style={{fontSize:26,fontWeight:800,color:'#0F172A',letterSpacing:'-0.6px',margin:'0 0 10px'}}>
+                Vérifiez votre boîte mail
+              </h1>
+              <p style={{fontSize:14,color:'#64748B',lineHeight:1.7,margin:'0 0 22px'}}>
+                Votre compte est créé. Nous avons envoyé un lien de confirmation à{' '}
+                <strong style={{color:'#0F172A',fontWeight:600}}>{pendingEmail}</strong>.
+              </p>
+
+              <ol style={{margin:'0 0 22px',padding:'0 0 0 20px',display:'flex',flexDirection:'column',gap:8}}>
+                {[
+                  'Ouvrez l’email de confirmation (pensez à vérifier les spams).',
+                  'Cliquez sur le lien de confirmation reçu.',
+                  'Vous arriverez directement sur votre tableau de bord.',
+                ].map(step => (
+                  <li key={step} style={{fontSize:13.5,color:'#334155',lineHeight:1.6}}>{step}</li>
+                ))}
+              </ol>
+
+              <div style={{background:'#F8FAFC',border:'1px solid #E2E8F0',borderRadius:12,padding:'12px 14px',fontSize:13,color:'#64748B',lineHeight:1.6,marginBottom:26}}>
+                L’email peut mettre une à deux minutes à arriver. Le lien expire au bout d’un moment : ouvrez-le rapidement.
+              </div>
+
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                <a href="/login" style={{height:44,display:'grid',placeItems:'center',background:'linear-gradient(135deg,#2563EB 0%,#4F46E5 50%,#7C3AED 100%)',color:'#fff',borderRadius:10,fontSize:14,fontWeight:600,textDecoration:'none',boxShadow:'0 4px 14px -4px rgba(79,70,229,0.5)'}}>
+                  J’ai confirmé, me connecter
+                </a>
+                <button
+                  type="button"
+                  onClick={() => { reset(); setPendingEmail(null) }}
+                  style={{height:44,background:'#F8FAFC',border:'1px solid #E2E8F0',borderRadius:10,fontSize:14,fontWeight:600,color:'#0F172A',cursor:'pointer',fontFamily:'inherit'}}
+                >
+                  Utiliser une autre adresse email
+                </button>
+              </div>
+            </div>
+          ) : (
+          <>
           <h1 style={{fontSize:26,fontWeight:800,color:'#0F172A',letterSpacing:'-0.6px',margin:'0 0 6px'}}>
             Créer un compte
           </h1>
@@ -202,7 +271,7 @@ export default function RegisterPage() {
             </div>
 
             {error && (
-              <div style={{background:'#FEF2F2',border:'1px solid #FCA5A5',borderRadius:10,padding:'10px 14px',fontSize:13,color:'#DC2626'}}>
+              <div role="alert" style={{background:'#FEF2F2',border:'1px solid #FCA5A5',borderRadius:10,padding:'10px 14px',fontSize:13,color:'#DC2626'}}>
                 {error}
               </div>
             )}
@@ -226,6 +295,8 @@ export default function RegisterPage() {
             En vous inscrivant, vous acceptez nos{' '}
             <a href="#" style={{color:'#2563EB',textDecoration:'none'}}>conditions d&apos;utilisation</a>
           </p>
+          </>
+          )}
         </div>
       </div>
     </main>

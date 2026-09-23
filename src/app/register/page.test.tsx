@@ -17,6 +17,15 @@ vi.mock('@/lib/supabase/client', () => ({
 
 import RegisterPage from './page'
 
+/** Remplit les 3 champs et soumet le formulaire d'inscription. */
+async function submitRegisterForm(user: ReturnType<typeof userEvent.setup>, password = 'motdepasse1') {
+  await user.type(screen.getByPlaceholderText('vous@example.com'), 'user@example.com')
+  const [pwd, confirm] = screen.getAllByPlaceholderText('••••••••')
+  await user.type(pwd, password)
+  await user.type(confirm, password)
+  await user.click(screen.getByRole('button', { name: /s'inscrire/i }))
+}
+
 describe('RegisterPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -76,19 +85,69 @@ describe('RegisterPage', () => {
     expect(pushMock).not.toHaveBeenCalled()
   })
 
-  it("redirige vers /dashboard après inscription réussie", async () => {
-    signUpMock.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null })
+  it('redirige vers /dashboard quand Supabase renvoie déjà une session (autoconfirm)', async () => {
+    signUpMock.mockResolvedValue({
+      data: {
+        user: { id: 'u1', email: 'user@example.com' },
+        session: { access_token: 'token' },
+      },
+      error: null,
+    })
 
     const user = userEvent.setup()
     render(<RegisterPage />)
-
-    await user.type(screen.getByPlaceholderText('vous@example.com'), 'user@example.com')
-    const [password, confirm] = screen.getAllByPlaceholderText('••••••••')
-    await user.type(password, 'motdepasse1')
-    await user.type(confirm, 'motdepasse1')
-
-    await user.click(screen.getByRole('button', { name: /s'inscrire/i }))
+    await submitRegisterForm(user)
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/dashboard'))
+    expect(screen.queryByText('Vérifiez votre boîte mail')).not.toBeInTheDocument()
+  })
+
+  it("affiche l'écran « Vérifiez votre boîte mail » quand aucune session n'est renvoyée, avec l'email saisi", async () => {
+    signUpMock.mockResolvedValue({
+      data: { user: { id: 'u1', email: 'user@example.com' }, session: null },
+      error: null,
+    })
+
+    const user = userEvent.setup()
+    render(<RegisterPage />)
+    await submitRegisterForm(user)
+
+    expect(await screen.findByRole('heading', { name: 'Vérifiez votre boîte mail' })).toBeInTheDocument()
+    expect(screen.getByText('user@example.com')).toBeInTheDocument()
+    // Le formulaire laisse la place à l'étape suivante, et surtout on ne
+    // redirige PAS vers /dashboard : il n'y a pas encore de session.
+    expect(screen.queryByPlaceholderText('vous@example.com')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /s'inscrire/i })).not.toBeInTheDocument()
+    expect(pushMock).not.toHaveBeenCalled()
+  })
+
+  it("fallback sur l'email soumis si la réponse signUp ne contient pas d'utilisateur", async () => {
+    signUpMock.mockResolvedValue({ data: { user: null, session: null }, error: null })
+
+    const user = userEvent.setup()
+    render(<RegisterPage />)
+    await submitRegisterForm(user)
+
+    expect(await screen.findByRole('heading', { name: 'Vérifiez votre boîte mail' })).toBeInTheDocument()
+    expect(screen.getByText('user@example.com')).toBeInTheDocument()
+  })
+
+  it('demande à Supabase de revenir sur /auth/callback pour le lien de confirmation', async () => {
+    signUpMock.mockResolvedValue({
+      data: { user: { id: 'u1', email: 'user@example.com' }, session: null },
+      error: null,
+    })
+
+    const user = userEvent.setup()
+    render(<RegisterPage />)
+    await submitRegisterForm(user)
+
+    await waitFor(() =>
+      expect(signUpMock).toHaveBeenCalledWith({
+        email: 'user@example.com',
+        password: 'motdepasse1',
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      })
+    )
   })
 })

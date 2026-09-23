@@ -1,0 +1,28 @@
+# ─────────────────────────────────────────────────────────────
+# InvoiceFlow — configuration Supabase versionnée.
+#
+# Ce fichier est poussé vers les projets HÉBERGÉS avec :
+#   supabase config diff --project-ref <ref>   # relire l'écart (read-only)
+#   supabase config push --project-ref <ref>   # appliquer
+#
+# Projets concernés :
+#   prod : hvidfzvlxqjrjgavawha
+#   dev  : dbijgbulrgipkdpbdnxa
+#
+# Seules les propriétés déclarées ci-dessous sont poussées ; tout le reste
+# de la config hébergée est laissé intact (voir `supabase config push --help`).
+# ─────────────────────────────────────────────────────────────
+project_id = "invoiceflow"
+
+[auth]
+# URL de base du site : sert de cible de repli pour les redirections d'auth
+# et de base pour les liens construits dans les emails.
+site_url = "https://invoiceflow-jade.vercel.app"
+
+# Liste d'autorisation des redirections post-authentification.
+# On garde le dev local (npm run dev → :3000) ET la prod Vercel, avec le
+# glob `/**` pour couvrir les sous-chemins (ex. /auth/callback).
+additional_redirect_urls = [
+  "http://localhost:3000/**",
+  "https://invoiceflow-jade.vercel.app/**",
+]
