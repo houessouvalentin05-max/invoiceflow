@@ -1,7 +1,18 @@
 import { NextResponse } from 'next/server'
 import { ZodError } from 'zod'
 
+export class ApiError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
 export function handleApiError(error: unknown) {
+  if (error instanceof ApiError) {
+    return NextResponse.json({ error: error.message }, { status: error.status })
+  }
+
   // Échec de validation zod → 400 avec messages FR par champ
   if (error instanceof ZodError) {
     const details = error.issues.map(issue => ({

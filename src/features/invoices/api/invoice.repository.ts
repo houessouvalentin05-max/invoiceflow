@@ -53,27 +53,32 @@ export async function createInvoiceItems(
   if (error) throw error
 }
 
-export async function updateInvoiceStatus(id: string, userId: string, status: string) {
+export async function updateInvoiceStatus(id: string, userId: string, status: string, currentStatus: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('invoices')
     .update({ status })
     .eq('id', id)
     .eq('user_id', userId)
+    .eq('status', currentStatus)
     .select()
-    .single()
+    .maybeSingle()
   if (error) throw error
   return data
 }
 
 export async function deleteInvoice(id: string, userId: string) {
   const supabase = await createClient()
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('invoices')
     .delete()
     .eq('id', id)
     .eq('user_id', userId)
+    .eq('status', 'draft')
+    .select('id')
+    .maybeSingle()
   if (error) throw error
+  return Boolean(data)
 }
 
 export async function getUserDefaultTva(userId: string) {

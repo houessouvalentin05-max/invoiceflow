@@ -12,7 +12,14 @@ vi.mock('./invoice.repository', () => ({
 }))
 
 import * as repo from './invoice.repository'
-import { addInvoice, changeInvoiceStatus, listInvoices, getInvoice, removeInvoice } from './invoice.service'
+import {
+  addInvoice,
+  changeInvoiceStatus,
+  INVOICE_STATUS_TRANSITIONS,
+  listInvoices,
+  getInvoice,
+  removeInvoice,
+} from './invoice.service'
 
 const repoMock = repo as unknown as {
   getInvoices: ReturnType<typeof vi.fn>
@@ -40,7 +47,9 @@ describe('invoice.service — calculs serveur & garde-fous', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     repoMock.createInvoiceDb.mockResolvedValue({ id: 'inv-1', ...VALID_PAYLOAD })
+    repoMock.getInvoiceById.mockResolvedValue({ id: 'inv-1', status: 'draft' })
     repoMock.createInvoiceItems.mockResolvedValue(undefined)
+    repoMock.deleteInvoice.mockResolvedValue(true)
     repoMock.invoiceNumberExists.mockResolvedValue(false)
     repoMock.getUserDefaultTva.mockResolvedValue('18') // 18 % → 0.18
   })
@@ -90,17 +99,66 @@ describe('invoice.service — calculs serveur & garde-fous', () => {
   })
 
   it('changeInvoiceStatus accepte un statut valide et filtre par user_id', async () => {
-    repoMock.updateInvoiceStatus.mockResolvedValue({ id: 'inv-1', status: 'paid' })
+    repoMock.getInvoiceById.mockResolvedValue({ id: 'inv-1', status: 'draft' })
+    repoMock.updateInvoiceStatus.mockResolvedValue({ id: 'inv-1', status: 'sent' })
 
-    await changeInvoiceStatus('inv-1', 'user-1', 'paid')
+    await changeInvoiceStatus('inv-1', 'user-1', 'sent')
 
-    expect(repoMock.updateInvoiceStatus).toHaveBeenCalledWith('inv-1', 'user-1', 'paid')
+    expect(repoMock.getInvoiceById).toHaveBeenCalledWith('inv-1', 'user-1')
+    expect(repoMock.updateInvoiceStatus).toHaveBeenCalledWith('inv-1', 'user-1', 'sent', 'draft')
   })
 
-  it('délègue list/get/remove avec la user_id (isolation)', async () => {
+  it.each(Object.entries(INVOICE_STATUS_TRANSITIONS).flatMap(([current, nextStatuses]) =>
+    nextStatuses.map(next => [current, next] as const)
+  ))('autorise la transition %s → %s de la matrice', async (current, next) => {
+    repoMock.getInvoiceById.mockResolvedValue({ id: 'inv-1', status: current })
+    repoMock.updateInvoiceStatus.mockResolvedValue({ id: 'inv-1', status: next })
+
+    await changeInvoiceStatus('inv-1', 'user-1', next)
+
+    expect(repoMock.updateInvoiceStatus).toHaveBeenCalledWith('inv-1', 'user-1', next, current)
+  })
+
+  it('refuse de faire repasser une facture payée en brouillon avec un conflit 409', async () => {
+    repoMock.getInvoiceById.mockResolvedValue({ id: 'inv-paid', status: 'paid' })
+
+    await expect(changeInvoiceStatus('inv-paid', 'user-1', 'draft')).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining('Transition de statut impossible'),
+    })
+    expect(repoMock.updateInvoiceStatus).not.toHaveBeenCalled()
+  })
+
+  it('refuse les autres transitions en arrière non prévues par la matrice', async () => {
+    repoMock.getInvoiceById.mockResolvedValue({ id: 'inv-1', status: 'sent' })
+
+    await expect(changeInvoiceStatus('inv-1', 'user-1', 'pending')).rejects.toMatchObject({ status: 409 })
+    expect(repoMock.updateInvoiceStatus).not.toHaveBeenCalled()
+  })
+
+  it('refuse de supprimer une facture payée avec un conflit 409', async () => {
+    repoMock.getInvoiceById.mockResolvedValue({ id: 'inv-paid', status: 'paid' })
+
+    await expect(removeInvoice('inv-paid', 'user-1')).rejects.toMatchObject({
+      status: 409,
+      message: 'Seules les factures brouillon peuvent être supprimées.',
+    })
+    expect(repoMock.deleteInvoice).not.toHaveBeenCalled()
+  })
+
+  it('supprime un brouillon seulement après vérification de son statut', async () => {
+    repoMock.getInvoiceById.mockResolvedValue({ id: 'inv-draft', status: 'draft' })
+    repoMock.deleteInvoice.mockResolvedValue(true)
+
+    await removeInvoice('inv-draft', 'user-1')
+
+    expect(repoMock.getInvoiceById).toHaveBeenCalledWith('inv-draft', 'user-1')
+    expect(repoMock.deleteInvoice).toHaveBeenCalledWith('inv-draft', 'user-1')
+  })
+
+  it('délègue list/get et remove avec la user_id (isolation)', async () => {
     repoMock.getInvoices.mockResolvedValue([{ id: 'a' }])
-    repoMock.getInvoiceById.mockResolvedValue({ id: 'b' })
-    repoMock.deleteInvoice.mockResolvedValue(undefined)
+    repoMock.getInvoiceById.mockResolvedValue({ id: 'b', status: 'draft' })
 
     await listInvoices('user-1')
     await getInvoice('inv-x', 'user-1')
@@ -108,6 +166,7 @@ describe('invoice.service — calculs serveur & garde-fous', () => {
 
     expect(repoMock.getInvoices).toHaveBeenCalledWith('user-1')
     expect(repoMock.getInvoiceById).toHaveBeenCalledWith('inv-x', 'user-1')
+    expect(repoMock.getInvoiceById).toHaveBeenCalledWith('inv-y', 'user-1')
     expect(repoMock.deleteInvoice).toHaveBeenCalledWith('inv-y', 'user-1')
   })
 })

@@ -1,6 +1,16 @@
 import { invoiceSchema } from './invoice.validator'
 import * as repo from './invoice.repository'
-import { INVOICE_STATUSES, generateInvoiceNumber, tvaRate } from '@/lib/invoice-meta'
+import { ApiError } from '@/lib/api-error'
+import { INVOICE_STATUSES, generateInvoiceNumber, tvaRate, type InvoiceStatus } from '@/lib/invoice-meta'
+
+export const INVOICE_STATUS_TRANSITIONS: Record<InvoiceStatus, readonly InvoiceStatus[]> = {
+  draft: ['pending', 'sent'],
+  pending: ['sent', 'viewed', 'overdue', 'paid'],
+  sent: ['viewed', 'overdue', 'paid'],
+  viewed: ['overdue', 'paid'],
+  overdue: ['paid'],
+  paid: [],
+}
 
 export async function listInvoices(userId: string) {
   return repo.getInvoices(userId)
@@ -54,9 +64,33 @@ export async function changeInvoiceStatus(id: string, userId: string, status: st
   if (!(INVOICE_STATUSES as readonly string[]).includes(status)) {
     throw new Error('Statut invalide')
   }
-  return repo.updateInvoiceStatus(id, userId, status)
+
+  const invoice = await repo.getInvoiceById(id, userId)
+  const currentStatus = invoice.status as InvoiceStatus
+  const nextStatus = status as InvoiceStatus
+
+  if (currentStatus === nextStatus) return invoice
+
+  if (!INVOICE_STATUS_TRANSITIONS[currentStatus]?.includes(nextStatus)) {
+    throw new ApiError(409, `Transition de statut impossible : ${currentStatus} → ${nextStatus}.`)
+  }
+
+  const updated = await repo.updateInvoiceStatus(id, userId, nextStatus, currentStatus)
+  if (!updated) {
+    throw new ApiError(409, 'Le statut de la facture a changé. Rechargez la page avant de réessayer.')
+  }
+
+  return updated
 }
 
 export async function removeInvoice(id: string, userId: string) {
-  return repo.deleteInvoice(id, userId)
+  const invoice = await repo.getInvoiceById(id, userId)
+  if (invoice.status !== 'draft') {
+    throw new ApiError(409, 'Seules les factures brouillon peuvent être supprimées.')
+  }
+
+  const deleted = await repo.deleteInvoice(id, userId)
+  if (!deleted) {
+    throw new ApiError(409, 'Le statut de la facture a changé. Rechargez la page avant de réessayer.')
+  }
 }
