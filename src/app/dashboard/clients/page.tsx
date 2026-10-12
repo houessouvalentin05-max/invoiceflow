@@ -165,6 +165,65 @@ export default function ClientsPage() {
       c.company?.toLowerCase().includes(search.toLowerCase())
     ), [clients, search])
 
+  // Formulaire « Nouveau client » rendu à la fois par la branche « vide » (early
+  // return) et par le rendu principal : sans ce partage, le CTA de l'état vide
+  // basculait showForm sans jamais afficher le formulaire.
+  const clientForm = showForm ? (
+    <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 24, animation: 'fadeUp 0.3s ease-out', boxShadow: '0 10px 30px -18px rgba(15, 23, 42, 0.25)' }}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <h2 style={{ fontSize: 15, fontWeight: 700, color: text, margin: '0 0 20px' }}>Nouveau client</h2>
+      <form onSubmit={handleSubmit}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div>
+            <label style={labelStyle}>Nom <span style={{ color: '#DC2626' }}>*</span></label>
+            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+              placeholder="Jean Dupont" required style={inputStyle}
+              onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = border} />
+          </div>
+          <div>
+            <label style={labelStyle}>Email</label>
+            <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+              placeholder="jean@example.com" style={inputStyle}
+              onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = border} />
+          </div>
+          <div>
+            <label style={labelStyle}>Téléphone</label>
+            <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
+              placeholder="+228 90 00 00 00" style={inputStyle}
+              onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = border} />
+          </div>
+          <div>
+            <label style={labelStyle}>Entreprise <span style={{ fontSize: 11, color: muted, fontWeight: 400 }}>optionnel</span></label>
+            <input value={form.company} onChange={e => setForm({ ...form, company: e.target.value })}
+              placeholder="Nom de l'entreprise" style={inputStyle}
+              onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = border} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={labelStyle}>Adresse</label>
+            <input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })}
+              placeholder="Lomé, Togo" style={inputStyle}
+              onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = border} />
+          </div>
+        </div>
+        {error && <div style={{ background: isDark ? 'rgba(220,38,38,0.12)' : '#FEF2F2', border: `1px solid ${isDark ? '#7F1D1D' : '#FCA5A5'}`, borderRadius: 10, padding: '10px 14px', fontSize: 13, color: isDark ? '#F87171' : '#DC2626', marginBottom: 16 }}>{error}</div>}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button type="submit" disabled={saving} style={{
+            height: 40, padding: '0 20px', borderRadius: 10,
+            background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff',
+            fontSize: 13, fontWeight: 600, border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
+            opacity: saving ? 0.7 : 1, fontFamily: 'inherit'
+          }}>
+            {saving ? 'Enregistrement...' : 'Enregistrer le client'}
+          </button>
+          <button type="button" onClick={() => { setShowForm(false); setForm(EMPTY_FORM) }} style={{
+            height: 40, padding: '0 16px', borderRadius: 10, border: `1px solid ${border}`,
+            background: surface, color: muted, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'
+          }}>Annuler</button>
+        </div>
+      </form>
+    </div>
+  ) : null
+
   if (status === 'loading') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -208,6 +267,7 @@ export default function ClientsPage() {
             + Créer votre premier client
           </button>}
         />
+        {clientForm}
       </div>
     )
   }
@@ -252,62 +312,7 @@ export default function ClientsPage() {
         </button>
       </div>
 
-      {/* Form */}
-      {showForm && (
-        <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 24, animation: 'fadeUp 0.3s ease-out', boxShadow: '0 10px 30px -18px rgba(15, 23, 42, 0.25)' }}>
-          <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: text, margin: '0 0 20px' }}>Nouveau client</h2>
-          <form onSubmit={handleSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
-              <div>
-                <label style={labelStyle}>Nom <span style={{ color: '#DC2626' }}>*</span></label>
-                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                  placeholder="Jean Dupont" required style={inputStyle}
-                  onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = border} />
-              </div>
-              <div>
-                <label style={labelStyle}>Email</label>
-                <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
-                  placeholder="jean@example.com" style={inputStyle}
-                  onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = border} />
-              </div>
-              <div>
-                <label style={labelStyle}>Téléphone</label>
-                <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
-                  placeholder="+228 90 00 00 00" style={inputStyle}
-                  onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = border} />
-              </div>
-              <div>
-                <label style={labelStyle}>Entreprise <span style={{ fontSize: 11, color: muted, fontWeight: 400 }}>optionnel</span></label>
-                <input value={form.company} onChange={e => setForm({ ...form, company: e.target.value })}
-                  placeholder="Nom de l'entreprise" style={inputStyle}
-                  onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = border} />
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelStyle}>Adresse</label>
-                <input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })}
-                  placeholder="Lomé, Togo" style={inputStyle}
-                  onFocus={e => e.target.style.borderColor = '#2563EB'} onBlur={e => e.target.style.borderColor = border} />
-              </div>
-            </div>
-            {error && <div style={{ background: isDark ? 'rgba(220,38,38,0.12)' : '#FEF2F2', border: `1px solid ${isDark ? '#7F1D1D' : '#FCA5A5'}`, borderRadius: 10, padding: '10px 14px', fontSize: 13, color: isDark ? '#F87171' : '#DC2626', marginBottom: 16 }}>{error}</div>}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button type="submit" disabled={saving} style={{
-                height: 40, padding: '0 20px', borderRadius: 10,
-                background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff',
-                fontSize: 13, fontWeight: 600, border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
-                opacity: saving ? 0.7 : 1, fontFamily: 'inherit'
-              }}>
-                {saving ? 'Enregistrement...' : 'Enregistrer le client'}
-              </button>
-              <button type="button" onClick={() => { setShowForm(false); setForm(EMPTY_FORM) }} style={{
-                height: 40, padding: '0 16px', borderRadius: 10, border: `1px solid ${border}`,
-                background: surface, color: muted, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'
-              }}>Annuler</button>
-            </div>
-          </form>
-        </div>
-      )}
+      {clientForm}
 
       {/* Search + View toggle */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
