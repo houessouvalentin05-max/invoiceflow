@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
       return redirectToError(request, 'failed', error)
     }
 
-    return NextResponse.redirect(new URL('/dashboard', getRedirectBase(request)))
+    return NextResponse.redirect(new URL('/auth/continue', getRedirectBase(request)))
   }
 
   // 4. Flux token_hash (template email réécrit) → vérification de l'OTP.
@@ -110,5 +110,5 @@ export async function GET(request: NextRequest) {
     return redirectToError(request, 'failed', error)
   }
 
-  return NextResponse.redirect(new URL('/dashboard', getRedirectBase(request)))
+  return NextResponse.redirect(new URL('/auth/continue', getRedirectBase(request)))
 }

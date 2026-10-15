@@ -33,24 +33,24 @@ describe('GET /auth/callback — confirmation email Supabase', () => {
     vi.restoreAllMocks()
   })
 
-  it('échange le code PKCE contre une session puis redirige vers /dashboard', async () => {
+  it('échange le code PKCE contre une session puis redirige vers la reprise post-auth', async () => {
     exchangeCodeForSessionMock.mockResolvedValue({ data: { session: {} }, error: null })
 
     const response = await GET(request('?code=auth-code-123'))
 
     expect(exchangeCodeForSessionMock).toHaveBeenCalledWith('auth-code-123')
     expect(verifyOtpMock).not.toHaveBeenCalled()
-    expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard')
+    expect(response.headers.get('location')).toBe('http://localhost:3000/auth/continue')
   })
 
-  it('gère aussi le format token_hash + type (verifyOtp) et redirige vers /dashboard', async () => {
+  it('gère aussi le format token_hash + type (verifyOtp) et redirige vers la reprise post-auth', async () => {
     verifyOtpMock.mockResolvedValue({ data: { session: {} }, error: null })
 
     const response = await GET(request('?token_hash=abc123&type=signup'))
 
     expect(verifyOtpMock).toHaveBeenCalledWith({ type: 'signup', token_hash: 'abc123' })
     expect(exchangeCodeForSessionMock).not.toHaveBeenCalled()
-    expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard')
+    expect(response.headers.get('location')).toBe('http://localhost:3000/auth/continue')
   })
 
   it('redirige vers l’écran d’erreur (lien expiré) quand Supabase refuse le lien', async () => {
@@ -129,7 +129,7 @@ describe('GET /auth/callback — confirmation email Supabase', () => {
       })
       const response = await GET(forwarded)
 
-      expect(response.headers.get('location')).toBe('https://invoiceflow-jade.vercel.app/dashboard')
+      expect(response.headers.get('location')).toBe('https://invoiceflow-jade.vercel.app/auth/continue')
     } finally {
       vi.unstubAllEnvs()
     }

@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
+import { AUTH_NEXT_PATH_KEY, safePostAuthPath } from '@/lib/auth-redirect'
 
 const registerSchema = z.object({
   email: z.string().email('Email invalide'),
@@ -41,6 +42,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   // Email en attente de confirmation : non-null ⇒ écran « vérifiez votre boîte mail ».
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+  const [pendingNext, setPendingNext] = useState('/dashboard')
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
@@ -49,6 +51,9 @@ export default function RegisterPage() {
   async function onSubmit(data: RegisterInput) {
     setLoading(true)
     setError(null)
+    const next = safePostAuthPath(new URLSearchParams(window.location.search).get('next'))
+    setPendingNext(next)
+    localStorage.setItem(AUTH_NEXT_PATH_KEY, next)
     const supabase = createClient()
     const { data: signUpData, error } = await supabase.auth.signUp({
       email: data.email,
@@ -69,7 +74,7 @@ export default function RegisterPage() {
 
     // Autoconfirm activé côté Supabase ⇒ session immédiate, on entre direct.
     if (signUpData.session) {
-      router.push('/dashboard')
+      router.push(next)
       return
     }
 
@@ -159,6 +164,11 @@ export default function RegisterPage() {
                 Votre compte est créé. Nous avons envoyé un lien de confirmation à{' '}
                 <strong style={{color:'#0F172A',fontWeight:600}}>{pendingEmail}</strong>.
               </p>
+              {pendingNext !== '/dashboard' && (
+                <p style={{fontSize:13,color:'#52616B',lineHeight:1.6,margin:'0 0 18px'}}>
+                  Pour reprendre votre facture, ouvrez le lien reçu dans ce même navigateur.
+                </p>
+              )}
 
               <ol style={{margin:'0 0 22px',padding:'0 0 0 20px',display:'flex',flexDirection:'column',gap:8}}>
                 {[
@@ -175,7 +185,7 @@ export default function RegisterPage() {
               </div>
 
               <div style={{display:'flex',flexDirection:'column',gap:10}}>
-                <a href="/login" style={{height:44,display:'grid',placeItems:'center',background:'linear-gradient(135deg,#2563EB 0%,#4F46E5 50%,#7C3AED 100%)',color:'#fff',borderRadius:10,fontSize:14,fontWeight:600,textDecoration:'none',boxShadow:'0 4px 14px -4px rgba(79,70,229,0.5)'}}>
+                <a href={`/login?next=${encodeURIComponent(pendingNext)}`} style={{height:44,display:'grid',placeItems:'center',background:'linear-gradient(135deg,#2563EB 0%,#4F46E5 50%,#7C3AED 100%)',color:'#fff',borderRadius:10,fontSize:14,fontWeight:600,textDecoration:'none',boxShadow:'0 4px 14px -4px rgba(79,70,229,0.5)'}}>
                   J’ai confirmé, me connecter
                 </a>
                 <button
@@ -194,7 +204,15 @@ export default function RegisterPage() {
           </h1>
           <p style={{fontSize:14,color:'#64748B',margin:'0 0 32px'}}>
             Déjà un compte ?{' '}
-            <a href="/login" style={{color:'#2563EB',fontWeight:600,textDecoration:'none'}}>Se connecter</a>
+            <a
+              href="/login"
+              onClick={event => {
+                event.preventDefault()
+                const next = safePostAuthPath(new URLSearchParams(window.location.search).get('next'))
+                router.push(`/login?next=${encodeURIComponent(next)}`)
+              }}
+              style={{color:'#2563EB',fontWeight:600,textDecoration:'none'}}
+            >Se connecter</a>
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} noValidate style={{display:'flex',flexDirection:'column',gap:20}}>

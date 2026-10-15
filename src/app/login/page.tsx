@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
+import { safePostAuthPath } from '@/lib/auth-redirect'
 
 const loginSchema = z.object({
   email: z.string().email('Email invalide'),
@@ -52,7 +53,8 @@ export default function LoginPage() {
       setLoading(false)
       return
     }
-    router.push('/dashboard')
+    const next = new URLSearchParams(window.location.search).get('next')
+    router.push(safePostAuthPath(next))
   }
 
   return (

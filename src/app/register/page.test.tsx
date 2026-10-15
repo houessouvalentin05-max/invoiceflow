@@ -150,4 +150,14 @@ describe('RegisterPage', () => {
       })
     )
   })
+
+  it('redirige les comptes déjà existants vers la connexion en préservant la finalisation demandée', async () => {
+    window.history.pushState({}, '', '/register?next=%2Ffactures%2Ffinaliser')
+    const user = userEvent.setup()
+    render(<RegisterPage />)
+
+    await user.click(screen.getByRole('link', { name: 'Se connecter' }))
+
+    expect(pushMock).toHaveBeenCalledWith('/login?next=%2Ffactures%2Ffinaliser')
+  })
 })

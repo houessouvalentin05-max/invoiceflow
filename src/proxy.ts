@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { safePostAuthPath } from '@/lib/auth-redirect'
 
 /**
  * Next.js middleware — auth guard + session refresh.
@@ -49,7 +50,8 @@ export default async function proxy(request: NextRequest) {
   // Redirect authenticated users away from the login page.
   if (user && request.nextUrl.pathname === '/login') {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = safePostAuthPath(request.nextUrl.searchParams.get('next'))
+    url.search = ''
     return NextResponse.redirect(url)
   }
 
