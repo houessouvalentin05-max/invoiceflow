@@ -4,8 +4,8 @@ import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from '@/lib/invoice-meta'
 
-const fmtXof = (n: number) =>
-  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n || 0) + ' XOF'
+const formatMoney = (n: number, currency: string) =>
+  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n || 0) + ` ${currency}`
 
 const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
@@ -14,6 +14,7 @@ interface InvoiceRecord {
   id: string
   invoice_number: string
   total: number
+  currency: string
   status: string
   issue_date: string | null
   due_date: string | null
@@ -227,7 +228,7 @@ export default function InvoicesPage() {
                       {inv.client?.name || '—'}
                     </td>
                     <td style={{ padding: '16px 20px', fontSize: 13, fontWeight: 700, color: '#0F172A' }}>
-                      {fmtXof(Number(inv.total || 0))}
+                      {formatMoney(Number(inv.total || 0), inv.currency)}
                     </td>
                     <td style={{ padding: '16px 20px' }}>
                       <span
