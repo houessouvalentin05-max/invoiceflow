@@ -63,15 +63,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === href : pathname === href || pathname.startsWith(href + '/');
 
+  const closeMobileSidebar = () => setSidebarOpen(false);
+
   const navItemStyle = (href: string): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', justifyContent: showLabels ? 'flex-start' : 'center',
     gap: showLabels ? 11 : 0, padding: showLabels ? '10px 12px' : '10px',
     borderRadius: 12, fontSize: 13.5, fontWeight: 600, textDecoration: 'none',
-    margin: '2px 0', borderLeft: '3px solid transparent', transition: 'all 0.2s ease',
+    margin: '2px 0', transition: 'all 0.2s ease',
     whiteSpace: 'nowrap', overflow: 'hidden', position: 'relative',
     ...(isActive(href) ? {
       background: isDark ? 'rgba(79,70,229,0.24)' : 'linear-gradient(90deg,rgba(37,99,235,0.2),rgba(124,58,237,0.15))',
-      color: '#fff', borderLeftColor: '#7C3AED', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+      color: '#fff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
     } : {
       color: 'rgba(255,255,255,0.78)',
     }),
@@ -109,14 +111,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         <div style={{flex:1,overflowY:'auto',padding:'10px 12px'}}>
           <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'1.5px',padding:'14px 10px 8px',textTransform:'uppercase'}}>{showLabels ? 'Principal' : ''}</div>
           {NAV_MAIN.map(n => (
-            <Link key={n.href} href={n.href} style={navItemStyle(n.href)} title={sidebarCollapsed ? n.label : undefined}>
+            <Link key={n.href} href={n.href} onClick={closeMobileSidebar} className={isActive(n.href) ? 'outline-none focus:outline-none focus-visible:outline-none focus:ring-0 active:ring-0 [-webkit-tap-highlight-color:transparent] focus-visible:bg-white/10' : 'outline-none focus:outline-none focus-visible:outline-none focus:ring-0 active:ring-0 [-webkit-tap-highlight-color:transparent] transition-colors duration-200 md:hover:bg-white/10 md:hover:text-white cursor-pointer focus-visible:bg-white/10'} style={navItemStyle(n.href)} title={sidebarCollapsed ? n.label : undefined}>
               <Icon>{n.icon}</Icon>
               {!sidebarCollapsed && n.label}
             </Link>
           ))}
           <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.3)',letterSpacing:'1.5px',padding:'14px 10px 8px',textTransform:'uppercase'}}>{showLabels ? 'Outils' : ''}</div>
           {NAV_TOOLS.map(n => (
-            <Link key={n.href} href={n.href} style={navItemStyle(n.href)} title={sidebarCollapsed ? n.label : undefined}>
+            <Link key={n.href} href={n.href} onClick={closeMobileSidebar} className={isActive(n.href) ? 'outline-none focus:outline-none focus-visible:outline-none focus:ring-0 active:ring-0 [-webkit-tap-highlight-color:transparent] focus-visible:bg-white/10' : 'outline-none focus:outline-none focus-visible:outline-none focus:ring-0 active:ring-0 [-webkit-tap-highlight-color:transparent] transition-colors duration-200 md:hover:bg-white/10 md:hover:text-white cursor-pointer focus-visible:bg-white/10'} style={navItemStyle(n.href)} title={sidebarCollapsed ? n.label : undefined}>
               <Icon>{n.icon}</Icon>
               {!sidebarCollapsed && n.label}
             </Link>

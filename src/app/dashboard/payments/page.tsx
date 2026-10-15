@@ -208,23 +208,6 @@ export default function PaymentsPage() {
         </button>
       </div>
 
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 16 }}>
-        <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 22, boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>
-          <div style={{ fontSize: 11.5, color: muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Total encaissé</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: text, letterSpacing: '-0.7px' }}>{loading ? '...' : fmtXof(stats.total)}</div>
-        </div>
-        {(['momo', 'orange_money', 'bank_transfer'] as const).map(m => (
-          <div key={m} style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 22, boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <div style={{ color: METHOD_COLORS[m].color }}>{METHOD_ICONS[m]}</div>
-              <span style={{ fontSize: 11.5, color: muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{METHOD_LABELS[m]}</span>
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: text, letterSpacing: '-0.5px' }}>{loading ? '...' : fmtXof(stats.byMethod[m] || 0)}</div>
-          </div>
-        ))}
-      </div>
-
       {/* Form */}
       {showForm && (
         <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 24, boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>
@@ -277,6 +260,23 @@ export default function PaymentsPage() {
           </form>
         </div>
       )}
+
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 16 }}>
+        <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 22, boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>
+          <div style={{ fontSize: 11.5, color: muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Total encaissé</div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: text, letterSpacing: '-0.7px' }}>{loading ? '...' : fmtXof(stats.total)}</div>
+        </div>
+        {(['momo', 'orange_money', 'bank_transfer'] as const).map(m => (
+          <div key={m} style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, padding: 22, boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <div style={{ color: METHOD_COLORS[m].color }}>{METHOD_ICONS[m]}</div>
+              <span style={{ fontSize: 11.5, color: muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{METHOD_LABELS[m]}</span>
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: text, letterSpacing: '-0.5px' }}>{loading ? '...' : fmtXof(stats.byMethod[m] || 0)}</div>
+          </div>
+        ))}
+      </div>
 
       {/* Table */}
       <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 16, overflowX: 'auto', boxShadow: isDark ? '0 10px 24px -18px rgba(2, 6, 23, 0.65)' : '0 10px 24px -18px rgba(15, 23, 42, 0.2)' }}>

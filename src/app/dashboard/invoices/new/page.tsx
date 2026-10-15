@@ -47,6 +47,8 @@ export default function NewInvoicePage() {
     status: 'draft',
     notes: '',
   }))
+  const [clientQuery, setClientQuery] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [defaultTva, setDefaultTva] = useState<string | null>(null)
   const [items, setItems] = useState<Item[]>([
     { description: '', quantity: 1, unit_price: 0 }
@@ -110,9 +112,20 @@ export default function NewInvoicePage() {
 
   const fmtNum = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n)
 
+  // Colonnes partagées entre l'en-tête et les lignes d'articles : en mobile,
+  // l'en-tête est masqué et chaque ligne devient une mini-carte sur 2 rangs
+  // (description pleine largeur + qté / prix / total / suppression).
+  const itemRowColumns = isMobile ? '72px minmax(0,1fr) auto 32px' : 'minmax(0,1fr) 80px 120px 100px 32px'
+
+  // Autocomplete client : filtre sur le nom ; focus sans saisie = liste complète.
+  const normalizedClientQuery = clientQuery.trim().toLowerCase()
+  const suggestions = normalizedClientQuery
+    ? clients.filter(c => c.name.toLowerCase().includes(normalizedClientQuery))
+    : clients
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.client_id) { setError('Veuillez sélectionner un client.'); return }
+    if (!form.client_id) { setError('Veuillez sélectionner un client dans la liste ou en créer un nouveau.'); return }
     if (items.some(it => !it.description.trim())) { setError('Chaque ligne doit avoir une description.'); return }
     setLoading(true)
     setError(null)
@@ -159,13 +172,29 @@ export default function NewInvoicePage() {
         <div style={sectionStyle}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: text, margin: '0 0 20px' }}>Informations générales</h2>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
-            <div>
+            <div style={{ position: 'relative' }}>
               <label style={labelStyle}>Client <span style={{ color: '#DC2626' }}>*</span></label>
-              <select value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })} required
-                style={{ ...inputStyle, cursor: 'pointer' }}>
-                <option value="">{clientsStatus === 'loading' ? 'Chargement des clients...' : 'Sélectionner un client'}</option>
-                {clientsStatus === 'success' && clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <input
+                value={clientQuery}
+                onChange={e => { setClientQuery(e.target.value); setForm({ ...form, client_id: '' }); setShowSuggestions(true) }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setShowSuggestions(false)}
+                placeholder={clientsStatus === 'loading' ? 'Chargement des clients...' : clients.length > 0 ? 'Taper un nom de client…' : 'Créez d’abord un client'}
+                aria-label="Client"
+                autoComplete="off"
+                style={inputStyle}
+              />
+              {showSuggestions && suggestions.length > 0 && (
+                <ul role="listbox" aria-label="Suggestions de clients" style={{ position: 'absolute', zIndex: 10, top: 'calc(100% + 4px)', left: 0, right: 0, margin: 0, padding: 4, listStyle: 'none', background: surface, border: `1px solid ${border}`, borderRadius: 10, boxShadow: '0 12px 28px -12px rgba(15, 23, 42, 0.25)', maxHeight: 220, overflowY: 'auto' }}>
+                  {suggestions.map(c => (
+                    <li key={c.id}>
+                      <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => { setForm({ ...form, client_id: c.id }); setClientQuery(c.name); setShowSuggestions(false) }} style={{ width: '100%', textAlign: 'left', padding: '9px 10px', borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, color: text }}>
+                        {c.name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {clientsStatus === 'error' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 13, color: '#DC2626' }}>
                   <span>Impossible de charger la liste des clients.</span>
@@ -214,28 +243,28 @@ export default function NewInvoicePage() {
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 100px 32px', gap: 10, marginBottom: 8 }}>
+          <div style={{ display: isMobile ? 'none' : 'grid', gridTemplateColumns: itemRowColumns, gap: 10, marginBottom: 8 }}>
             {['Description', 'Qté', 'Prix unitaire', 'Total', ''].map(h => (
-              <div key={h} style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</div>
+              <div key={h} style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: h === 'Description' || h === '' ? 'left' : 'right' }}>{h}</div>
             ))}
           </div>
 
           {items.map((item, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 100px 32px', gap: 10, marginBottom: 10, alignItems: 'center' }}>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: itemRowColumns, gap: isMobile ? 8 : 10, marginBottom: 10, alignItems: 'center' }}>
               <input value={item.description} onChange={e => updateItem(i, 'description', e.target.value)}
-                placeholder="Description de l'article" required style={inputStyle}
+                placeholder="Description de l'article" required style={{ ...inputStyle, gridColumn: isMobile ? '1 / -1' : undefined }}
                 onFocus={e => e.currentTarget.style.borderColor = accent} onBlur={e => e.currentTarget.style.borderColor = border} />
               <input type="number" value={item.quantity} min={1} onChange={e => updateItem(i, 'quantity', Number(e.target.value))}
-                style={{ ...inputStyle, padding: '0 10px', textAlign: 'center' }}
+                aria-label={`Quantité article ${i + 1}`} placeholder="Qté" style={{ ...inputStyle, padding: '0 10px', textAlign: 'right' }}
                 onFocus={e => e.currentTarget.style.borderColor = accent} onBlur={e => e.currentTarget.style.borderColor = border} />
               <input type="number" value={item.unit_price} min={0} onChange={e => updateItem(i, 'unit_price', Number(e.target.value))}
-                placeholder="0" style={{ ...inputStyle, padding: '0 10px' }}
+                aria-label={`Prix unitaire article ${i + 1}`} placeholder="Prix" style={{ ...inputStyle, padding: '0 10px', textAlign: 'right' }}
                 onFocus={e => e.currentTarget.style.borderColor = accent} onBlur={e => e.currentTarget.style.borderColor = border} />
-              <div style={{ fontSize: 13, fontWeight: 700, color: text, textAlign: 'right' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: text, textAlign: 'right', whiteSpace: 'nowrap' }}>
                 {fmtNum(item.quantity * item.unit_price)}
               </div>
               {items.length > 1 ? (
-                <button type="button" onClick={() => removeItem(i)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 14 }}>✕</button>
+                <button type="button" aria-label={`Supprimer la ligne ${i + 1}`} onClick={() => removeItem(i)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #FCA5A5', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 14 }}>✕</button>
               ) : <div />}
             </div>
           ))}

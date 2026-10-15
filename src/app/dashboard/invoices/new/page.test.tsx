@@ -50,12 +50,13 @@ describe('NewInvoicePage — parcours client → facture', () => {
     const user = userEvent.setup()
     render(<NewInvoicePage />)
 
-    const option = await screen.findByRole('option', { name: 'Client Exemple' })
-    const clientSelect = option.closest('select')!
-    await user.selectOptions(clientSelect, 'c1')
+    const clientInput = screen.getByLabelText('Client')
+    await user.type(clientInput, 'Exem')
+    await user.click(await screen.findByRole('button', { name: 'Client Exemple' }))
+    expect(clientInput).toHaveValue('Client Exemple')
 
     await user.type(screen.getByPlaceholderText("Description de l'article"), 'Conseil')
-    const price = screen.getByPlaceholderText('0')
+    const price = screen.getByLabelText('Prix unitaire article 1')
     await user.clear(price)
     await user.type(price, '10000')
     await user.click(screen.getByRole('button', { name: 'Créer la facture →' }))
