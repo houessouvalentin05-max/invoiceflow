@@ -226,7 +226,7 @@ export default function HomePage() {
           </ul>
           <div className="nav-actions">
             <a href="/login" className="btn-ghost">Connexion</a>
-            <a href="/register" className="btn-primary">Essai gratuit →</a>
+            <a href="/facture" className="btn-primary">Créer une facture →</a>
           </div>
         </div>
       </nav>
@@ -241,8 +241,8 @@ export default function HomePage() {
           <h1>Facturez intelligemment.<br /><span>Soyez payé plus vite.</span></h1>
           <p>La facturation professionnelle pensée pour les freelances et entreprises d&apos;Afrique et d&apos;ailleurs.</p>
           <div className="hero-cta">
-            <a href="/register" className="btn-hero">
-              Commencer gratuitement
+            <a href="/facture" className="btn-hero">
+              Créer une facture
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
             </a>
             <a href="#demo" className="btn-demo">
@@ -420,8 +420,8 @@ export default function HomePage() {
           </div>
           <div className="pricing-grid">
             {[
-              {name:"Free",price:"0",period:"gratuit pour toujours",desc:"Idéal pour démarrer.",feats:["5 factures / mois","2 clients","Export PDF"],cta:"Commencer gratuitement",featured:false,href:"/register"},
-              {name:"Pro",price:"9 900",period:"par mois",desc:"Pour freelances en croissance.",feats:["Factures illimitées","Clients illimités","Mobile Money","Automatisations","Support prioritaire"],cta:"Essayer Pro — 14 jours gratuits",featured:true,href:"/register"},
+              {name:"Free",price:"0",period:"gratuit pour toujours",desc:"Idéal pour démarrer.",feats:["5 factures / mois","2 clients","Export PDF"],cta:"Commencer gratuitement",featured:false,href:"/facture"},
+              {name:"Pro",price:"9 900",period:"par mois",desc:"Pour freelances en croissance.",feats:["Factures illimitées","Clients illimités","Mobile Money","Automatisations","Support prioritaire"],cta:"Commencer par une facture",featured:true,href:"/facture"},
               {name:"Business",price:"24 900",period:"par mois",desc:"Pour les équipes.",feats:["Tout dans Pro","5 membres d'équipe","API access","Compte dédié"],cta:"Contacter les ventes",featured:false,href:"/contact"},
             ].map(p=>(
               <div className={`price-card${p.featured?" featured":""}`} key={p.name}>
@@ -504,7 +504,7 @@ export default function HomePage() {
           <h2 className="cta-title">Prêt à être payé à temps ?</h2>
           <p className="cta-sub">Rejoignez des centaines de freelances et entreprises qui utilisent déjà InvoiceFlow.</p>
           <div className="cta-btns">
-            <a href="/register" className="btn-cta-white">Créer votre compte gratuit →</a>
+            <a href="/facture" className="btn-cta-white">Créer une facture gratuitement →</a>
             <a href="/contact" className="btn-cta-ghost">Nous contacter</a>
           </div>
           <p className="cta-note">Gratuit pour toujours. Aucune carte bancaire. 4 minutes pour démarrer.</p>
