@@ -44,3 +44,8 @@ next-env.d.ts
 # supabase cli — état local du projet (refs, versions, cache) : jamais versionné
 supabase/.temp/
 supabase/.branches/
+
+# lock de coordination multi-agents (voir AGENTS.md) — jamais versionné
+.agent-lock
+
+
